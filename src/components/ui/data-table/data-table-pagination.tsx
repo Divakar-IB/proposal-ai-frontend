@@ -32,7 +32,7 @@ export const DataTablePagination = <TData,>({
     <div className="flex items-center justify-end px-6 py-4 border-t border-border">
       <div className="flex items-center gap-4">
         <span className="text-xs text-muted-foreground whitespace-nowrap">
-          Showing {from}–{to} of {totalRows}
+          Showing <span className="font-medium text-foreground">{from}–{to}</span> of <span className="font-medium text-foreground">{totalRows}</span>
         </span>
         <div className="w-px h-4 bg-border" />
         <div className="flex items-center gap-2">
@@ -55,7 +55,7 @@ export const DataTablePagination = <TData,>({
 
         <div className="flex items-center gap-1">
         <Button
-          variant="outline"
+          variant="secondary"
           size="icon-xs"
           onClick={() => table.setPageIndex(0)}
           disabled={!table.getCanPreviousPage()}
@@ -64,7 +64,7 @@ export const DataTablePagination = <TData,>({
           <ChevronsLeft />
         </Button>
         <Button
-          variant="outline"
+          variant="secondary"
           size="icon-xs"
           onClick={() => table.previousPage()}
           disabled={!table.getCanPreviousPage()}
@@ -97,7 +97,7 @@ export const DataTablePagination = <TData,>({
         )}
 
         <Button
-          variant="outline"
+          variant="secondary"
           size="icon-xs"
           onClick={() => table.nextPage()}
           disabled={!table.getCanNextPage()}
@@ -106,7 +106,7 @@ export const DataTablePagination = <TData,>({
           <ChevronRight />
         </Button>
         <Button
-          variant="outline"
+          variant="secondary"
           size="icon-xs"
           onClick={() => table.setPageIndex(table.getPageCount() - 1)}
           disabled={!table.getCanNextPage()}
