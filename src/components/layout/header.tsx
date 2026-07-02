@@ -1,35 +1,23 @@
 "use client";
 
-import { usePathname } from "next/navigation";
 import { BookOpen, Plus } from "lucide-react";
+import Link from "next/link";
 import { Button } from "@/components/ui";
-import { useSidebarStore } from "@/store/use-sidebar-store";
 
 export const Header = () => {
-  const pathname = usePathname();
-  const { navItems } = useSidebarStore();
-
-  const currentNav = navItems.find(
-    (item) => pathname === item.href || pathname.startsWith(item.href + "/"),
-  );
-  const title = currentNav?.label ?? "Dashboard";
-
   return (
     <header className="flex items-center justify-between px-8 py-4 border-border bg-white shadow-xs shrink-0 z-10">
-      {/* Left — org + page title */}
-      <div className="flex items-center gap-2 text-base">
-        <span className="text-muted-foreground font-medium font-mono">
-          InnoBoon Enterprise
-        </span>
-        <span className="w-px h-4 bg-border" />
-        <span className="text-foreground font-semibold">{title}</span>
-      </div>
+      <span className="text-muted-foreground font-medium font-mono text-base">
+        InnoBoon Enterprise
+      </span>
 
       {/* Right — actions + avatar */}
       <div className="flex items-center gap-3">
-        <Button variant="secondary" size="sm">
-          <BookOpen className="w-4 h-4" />
-          Knowledge Base
+        <Button variant="secondary" size="sm" asChild>
+          <Link href="/knowledge-base">
+            <BookOpen className="w-4 h-4" />
+            Knowledge Base
+          </Link>
         </Button>
 
         <Button size="sm">

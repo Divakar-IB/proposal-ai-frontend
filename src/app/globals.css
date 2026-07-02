@@ -87,6 +87,17 @@ body {
   background: linear-gradient(135deg, oklch(0.298 0.147 264), oklch(0.45 0.18 280));
 }
 
+@utility text-gradient-brand {
+  background-image: linear-gradient(to right, oklch(0.298 0.147 264), oklch(0.45 0.18 280));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+@utility card-surface {
+  @apply bg-linear-to-br from-white via-white to-primary/5 border border-border/60 shadow-xs rounded-xl;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

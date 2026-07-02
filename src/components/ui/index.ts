@@ -8,3 +8,7 @@ export { Heading } from "./heading";
 export { BrandLogo } from "./brand-logo";
 export { DataTable, DataTablePagination } from "./data-table";
 export type { ColumnDef, Row, Table, PaginationState, SortingState } from "./data-table";
+export { Popover, PopoverTrigger, PopoverContent } from "./popover";
+export { Tabs, TabsList, TabsTrigger, TabsContent } from "./tabs";
+export { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "./select";
+export { Textarea } from "./textarea";

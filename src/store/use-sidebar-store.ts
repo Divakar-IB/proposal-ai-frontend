@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { FileText, BookOpen, Settings, type LucideIcon } from "lucide-react";
+import { FileText, BookOpen, FolderOpen, Settings, type LucideIcon } from "lucide-react";
 
 export interface NavItem {
   href: string;
@@ -18,6 +18,7 @@ interface SidebarStore {
 const NAV_ITEMS: NavItem[] = [
   { href: "/all-proposals", label: "All Proposals", icon: FileText },
   { href: "/knowledge-base", label: "Knowledge Base", icon: BookOpen },
+  { href: "/kb-categories", label: "Document Categories", icon: FolderOpen },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
