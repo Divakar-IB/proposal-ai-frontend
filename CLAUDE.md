@@ -58,6 +58,13 @@ Logo is embedded on all generated proposal cover pages.
 Backend holds server-side render templates (Puppeteer HTML + docx skeletons) per layout ID.
 Frontend sends `{ proposalId, templateId, format }` → backend renders → returns S3 signed URL.
 
+## RBAC
+
+Two roles per organisation:
+
+- `org_admin` — full access; manages users, org settings, KB, categories
+- `member` — standard user; creates proposals, uploads KB documents, exports
+
 ## Organisation
 
 - Company: InnoBoon Technologies

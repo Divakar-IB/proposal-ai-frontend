@@ -166,7 +166,7 @@ export const AllProposalsPage = () => {
 
         <div className="grid grid-cols-4 gap-4">
           {stats.map(({ label, value, icon: Icon, color, bg }) => (
-            <Card key={label} className="p-5 flex items-center gap-4">
+            <div key={label} className="p-5 flex items-center gap-4 card-surface">
               <div
                 className={cn(
                   "w-10 h-10 rounded-full flex items-center justify-center shrink-0",
@@ -181,7 +181,7 @@ export const AllProposalsPage = () => {
                 </p>
                 <p className="text-xs text-muted-foreground">{label}</p>
               </div>
-            </Card>
+            </div>
           ))}
         </div>
 
