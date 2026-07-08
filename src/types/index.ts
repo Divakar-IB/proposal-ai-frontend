@@ -1,4 +1,6 @@
-export type { LoginRequest, LoginResponse } from "./auth";
+export { UserRole } from "./auth";
+export type { LoginRequest, LoginResponse, ResetPasswordRequest } from "./auth";
+export type { KbCategory, CreateCategoryRequest, UpdateCategoryRequest } from "./kb";
 export type {
   Proposal,
   ProposalStatus,

@@ -54,7 +54,7 @@ const LoginForm = () => {
     mutationFn: (data: LoginForm) =>
       authService.login({ email: data.email, password: data.password }),
     onSuccess: (response) => {
-      setUser({ role: response.role, is_first_login: response.is_first_login });
+      setUser({ role: response.role });
       toast.success("Signed in successfully");
       router.push("/all-proposals");
     },

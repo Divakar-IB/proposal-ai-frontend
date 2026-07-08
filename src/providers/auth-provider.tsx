@@ -1,18 +1,17 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { createContext, useContext, useState } from "react";
 import { authService } from "@/services";
+import { UserRole } from "@/types";
 
 interface AuthUser {
-  role: string;
-  is_first_login: boolean;
+  role: UserRole;
 }
 
 interface AuthContextValue {
   user: AuthUser | null;
   isAuthenticated: boolean;
-  role: string | null;
+  role: UserRole | null;
   setUser: (user: AuthUser) => void;
   logout: () => void;
 }
@@ -20,12 +19,12 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 const getInitialUser = (): AuthUser | null => {
-  if (!authService.isAuthenticated()) return null;
-  return { role: authService.getRole() ?? "user", is_first_login: false };
+  const role = authService.getRole();
+  if (!role) return null;
+  return { role };
 };
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  const router = useRouter();
   const [user, setUser] = useState<AuthUser | null>(getInitialUser);
 
   // useEffect(() => {

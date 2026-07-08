@@ -1,6 +1,7 @@
 import Cookies from "js-cookie";
 import { api } from "@/lib/axios";
-import type { LoginRequest, LoginResponse } from "@/types";
+import { UserRole } from "@/types";
+import type { LoginRequest, LoginResponse, ResetPasswordRequest } from "@/types";
 
 const COOKIE_OPTIONS = { expires: 7, secure: true, sameSite: "strict" } as const;
 
@@ -11,6 +12,10 @@ class AuthService {
     Cookies.set("r_token", data.refresh_token, COOKIE_OPTIONS);
     Cookies.set("role", data.role, COOKIE_OPTIONS);
     return data;
+  }
+
+  async resetPassword(payload: ResetPasswordRequest): Promise<void> {
+    await api.post("/auth/reset_password", payload);
   }
 
   logout(): void {
@@ -24,8 +29,8 @@ class AuthService {
     return Cookies.get("a_token");
   }
 
-  getRole(): string | undefined {
-    return Cookies.get("role");
+  getRole(): UserRole | undefined {
+    return Cookies.get("role") as UserRole | undefined;
   }
 
   isAuthenticated(): boolean {

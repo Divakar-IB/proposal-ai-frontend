@@ -7,7 +7,10 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Eye, EyeOff, ArrowLeft, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
+import { useMutation } from "@tanstack/react-query";
 import { Button, Input, Label, FormError, Heading } from "@/components/ui";
+import { authService } from "@/services";
+import type { ApiError } from "@/lib/axios";
 
 const resetPasswordSchema = z
   .object({
@@ -72,16 +75,27 @@ const ResetPasswordForm = () => {
   const {
     register,
     handleSubmit,
-    formState: { errors, isSubmitting },
+    formState: { errors },
   } = useForm<ResetPasswordForm>({
     resolver: zodResolver(resetPasswordSchema),
   });
 
-  const onSubmit = async (data: ResetPasswordForm) => {
-    console.log(data);
-    toast.success("Password updated successfully");
-    router.push("/auth/login");
-  };
+  const { mutate: resetPassword, isPending } = useMutation({
+    mutationFn: (data: ResetPasswordForm) =>
+      authService.resetPassword({
+        current_password: data.oldPassword,
+        new_password: data.newPassword,
+      }),
+    onSuccess: () => {
+      toast.success("Password updated successfully");
+      router.push("/auth/login");
+    },
+    onError: (error: ApiError) => {
+      toast.error(error.message ?? "Failed to update password");
+    },
+  });
+
+  const onSubmit = (data: ResetPasswordForm) => resetPassword(data);
 
   return (
     <div className="w-full max-w-md">
@@ -139,8 +153,8 @@ const ResetPasswordForm = () => {
           />
         </div>
 
-        <Button type="submit" className="w-full mt-1" disabled={isSubmitting}>
-          {isSubmitting ? "Updating password..." : "Update password"}
+        <Button type="submit" className="w-full mt-1" loading={isPending}>
+          Update password
         </Button>
       </form>
 

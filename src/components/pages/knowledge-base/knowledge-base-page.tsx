@@ -2,8 +2,13 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Search, Eye, Trash2, Plus, Edit } from "lucide-react";
+import {
+  Search, Eye, Trash2, Plus, Edit,
+  Files, Shield, Code2, GitBranch, Lock, History, FileText,
+  type LucideIcon,
+} from "lucide-react";
 import Link from "next/link";
+import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import {
   Button,
@@ -16,8 +21,26 @@ import {
 } from "@/components/ui";
 import type { ColumnDef } from "@/components/ui";
 import { PageHeader, ActionMenu } from "@/components/shared";
-import { CATEGORIES, KB_DOCUMENTS } from "@/lib/kb-data";
+import { kbService } from "@/services";
+import type { KbCategory } from "@/types";
+import { KB_DOCUMENTS } from "@/lib/kb-data";
 import type { KbDocument } from "@/lib/kb-data";
+
+interface IconConfig { icon: LucideIcon; iconColor: string; iconBg: string; }
+
+const ICON_MAP: Record<string, IconConfig> = {
+  "Company Capabilities":    { icon: Shield,    iconColor: "text-blue-500",   iconBg: "bg-blue-50"   },
+  "Technical Methodologies": { icon: Code2,     iconColor: "text-green-500",  iconBg: "bg-green-50"  },
+  "Development Practices":   { icon: GitBranch, iconColor: "text-indigo-500", iconBg: "bg-indigo-50" },
+  "Security & Compliance":   { icon: Lock,      iconColor: "text-amber-500",  iconBg: "bg-amber-50"  },
+  "Past Solutions":          { icon: History,   iconColor: "text-violet-500", iconBg: "bg-violet-50" },
+  "Technical Docs":          { icon: FileText,  iconColor: "text-teal-500",   iconBg: "bg-teal-50"   },
+};
+
+const getIconConfig = (name: string): IconConfig =>
+  ICON_MAP[name] ?? { icon: Files, iconColor: "text-primary", iconBg: "bg-primary/10" };
+
+const ALL_DOCS = { name: "All Documents", icon: Files, iconColor: "text-primary", iconBg: "bg-primary/10", document_count: 0 };
 
 const documents = KB_DOCUMENTS;
 
@@ -36,6 +59,16 @@ const STATUS_TABS: { label: string; value: StatusFilter }[] = [
 export const KnowledgeBasePage = () => {
   const router = useRouter();
   const [activeCategory, setActiveCategory] = useState<string>("All Documents");
+
+  const { data: apiCategories = [] } = useQuery({
+    queryKey: ["kb-categories"],
+    queryFn: () => kbService.getCategories(),
+  });
+
+  const categories = [
+    ALL_DOCS,
+    ...apiCategories.map((cat: KbCategory) => ({ ...cat, ...getIconConfig(cat.name) })),
+  ];
   const [search, setSearch] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>(
     StatusFilter.All,
@@ -172,7 +205,7 @@ export const KnowledgeBasePage = () => {
         />
 
         <div className="flex flex-wrap gap-3">
-          {CATEGORIES.map((cat) => {
+          {categories.map((cat) => {
             const Icon = cat.icon;
             const isActive = activeCategory === cat.name;
             return (
@@ -214,7 +247,7 @@ export const KnowledgeBasePage = () => {
                       isActive ? "text-white/70" : "text-muted-foreground",
                     )}
                   >
-                    {cat.count} {cat.count === 1 ? "document" : "documents"}
+                    {cat.document_count} {cat.document_count === 1 ? "document" : "documents"}
                   </span>
                 </div>
               </button>
