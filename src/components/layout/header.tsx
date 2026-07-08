@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, Plus } from "lucide-react";
+import { BookOpen } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui";
 
@@ -18,11 +18,6 @@ export const Header = () => {
             <BookOpen className="w-4 h-4" />
             Knowledge Base
           </Link>
-        </Button>
-
-        <Button size="sm">
-          <Plus className="w-4 h-4" />
-          New Proposal
         </Button>
 
         <div className="flex items-center gap-2.5">

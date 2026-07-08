@@ -1,20 +1,23 @@
 "use client";
 
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Search,
-  Filter,
-  Download,
   Plus,
   FileText,
   CheckCircle2,
   RefreshCw,
   Send,
-  MoreVertical,
+  Eye,
+  PenLine,
+  Trash2,
+  Download,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Button, Input, Card, DataTable } from "@/components/ui";
+import { Button, Input, Card, DataTable, Tabs, TabsList, TabsTrigger } from "@/components/ui";
 import type { ColumnDef } from "@/components/ui";
-import { PageHeader } from "@/components/shared";
+import { PageHeader, ActionMenu } from "@/components/shared";
 
 const stats = [
   {
@@ -48,6 +51,7 @@ const stats = [
 ];
 
 interface Proposal {
+  id: string;
   name: string;
   client: string;
   status: string;
@@ -55,42 +59,12 @@ interface Proposal {
 }
 
 const proposals: Proposal[] = [
-  {
-    name: "Cloud Migration Strategy",
-    client: "Acme Corp",
-    status: "In Review",
-    created: "Jan 15, 2024",
-  },
-  {
-    name: "Security Audit Framework",
-    client: "BankCo Ltd",
-    status: "Done",
-    created: "Jan 12, 2024",
-  },
-  {
-    name: "DevOps Transformation",
-    client: "RetailGiant",
-    status: "Draft",
-    created: "Jan 10, 2024",
-  },
-  {
-    name: "Data Lake Implementation",
-    client: "HealthTech Inc",
-    status: "Submitted",
-    created: "Jan 8, 2024",
-  },
-  {
-    name: "AI Integration Roadmap",
-    client: "FinanceFirst",
-    status: "Generating",
-    created: "Jan 5, 2024",
-  },
-  {
-    name: "Kubernetes Migration Plan",
-    client: "LogiCorp",
-    status: "Draft",
-    created: "Jan 3, 2024",
-  },
+  { id: "1", name: "Cloud Migration Strategy", client: "Acme Corp", status: "In Review", created: "Jan 15, 2024" },
+  { id: "2", name: "Security Audit Framework", client: "BankCo Ltd", status: "Done", created: "Jan 12, 2024" },
+  { id: "3", name: "DevOps Transformation", client: "RetailGiant", status: "Draft", created: "Jan 10, 2024" },
+  { id: "4", name: "Data Lake Implementation", client: "HealthTech Inc", status: "Submitted", created: "Jan 8, 2024" },
+  { id: "5", name: "AI Integration Roadmap", client: "FinanceFirst", status: "Generating", created: "Jan 5, 2024" },
+  { id: "6", name: "Kubernetes Migration Plan", client: "LogiCorp", status: "Draft", created: "Jan 3, 2024" },
 ];
 
 const statusStyles: Record<string, string> = {
@@ -101,61 +75,87 @@ const statusStyles: Record<string, string> = {
   Generating: "bg-orange-50 text-orange-600",
 };
 
-const columns: ColumnDef<Proposal, string>[] = [
-  {
-    accessorKey: "name",
-    header: "Proposal Name",
-    enableSorting: true,
-    cell: ({ getValue }) => (
-      <span className="font-medium text-foreground">{getValue()}</span>
-    ),
-  },
-  {
-    accessorKey: "client",
-    header: "Client",
-    enableSorting: true,
-    cell: ({ getValue }) => (
-      <span className="text-muted-foreground">{getValue()}</span>
-    ),
-  },
-  {
-    accessorKey: "status",
-    header: "Status",
-    cell: ({ getValue }) => {
-      const status = getValue();
-      return (
-        <span
-          className={cn(
-            "text-xs font-medium px-2.5 py-1 rounded-full",
-            statusStyles[status],
-          )}
-        >
-          {status}
-        </span>
-      );
-    },
-  },
-  {
-    accessorKey: "created",
-    header: "Created",
-    enableSorting: true,
-    cell: ({ getValue }) => (
-      <span className="text-muted-foreground">{getValue()}</span>
-    ),
-  },
-  {
-    id: "actions",
-    header: "Action",
-    size: 40,
-    cell: () => (
-      <button className="text-muted-foreground hover:text-foreground transition-colors">
-        <MoreVertical className="w-4 h-4" />
-      </button>
-    ),
-  },
-];
+
+const STATUS_TABS = ["All", "Draft", "In Review", "Generating", "Submitted", "Done"] as const;
+type StatusTab = (typeof STATUS_TABS)[number];
 
 export const AllProposalsPage = () => {
+  const router = useRouter();
+  const [activeTab, setActiveTab] = useState<StatusTab>("All");
+  const [search, setSearch] = useState("");
+
+  const columns: ColumnDef<Proposal, string>[] = [
+    {
+      accessorKey: "name",
+      header: "Proposal Name",
+      enableSorting: true,
+      cell: ({ getValue }) => (
+        <span className="font-medium text-foreground">{getValue()}</span>
+      ),
+    },
+    {
+      accessorKey: "client",
+      header: "Client",
+      enableSorting: true,
+      cell: ({ getValue }) => (
+        <span className="text-muted-foreground">{getValue()}</span>
+      ),
+    },
+    {
+      accessorKey: "status",
+      header: "Status",
+      cell: ({ getValue }) => {
+        const status = getValue();
+        return (
+          <span
+            className={cn(
+              "text-xs font-medium px-2.5 py-1 rounded-full",
+              statusStyles[status],
+            )}
+          >
+            {status}
+          </span>
+        );
+      },
+    },
+    {
+      accessorKey: "created",
+      header: "Created",
+      enableSorting: true,
+      cell: ({ getValue }) => (
+        <span className="text-muted-foreground">{getValue()}</span>
+      ),
+    },
+    {
+      id: "actions",
+      header: "Action",
+      size: 40,
+      cell: ({ row }) => {
+        const { id } = row.original;
+        const base = `/all-proposals/generate-proposals/${id}`;
+        return (
+          <ActionMenu
+            items={[
+              { label: "View", icon: Eye, onClick: () => router.push(`${base}/review`) },
+              { label: "Edit", icon: PenLine, onClick: () => router.push(`${base}/review`) },
+              { label: "Download", icon: Download, onClick: () => router.push(`${base}/export`) },
+              { label: "Delete", icon: Trash2, onClick: () => {}, variant: "destructive" },
+            ]}
+          />
+        );
+      },
+    },
+  ];
+
+  const filtered = proposals.filter((p) => {
+    const matchesTab = activeTab === "All" || p.status === activeTab;
+    const matchesSearch =
+      search === "" ||
+      p.name.toLowerCase().includes(search.toLowerCase()) ||
+      p.client.toLowerCase().includes(search.toLowerCase());
+    return matchesTab && matchesSearch;
+  });
+
   return (
     <div className="flex flex-col relative">
       <div className="flex flex-col gap-6">
@@ -166,7 +166,7 @@ export const AllProposalsPage = () => {
 
         <div className="grid grid-cols-4 gap-4">
           {stats.map(({ label, value, icon: Icon, color, bg }) => (
-            <Card key={label} className="p-5 flex items-center gap-4">
+            <div key={label} className="p-5 flex items-center gap-4 card-surface">
               <div
                 className={cn(
                   "w-10 h-10 rounded-full flex items-center justify-center shrink-0",
@@ -181,38 +181,46 @@ export const AllProposalsPage = () => {
                 </p>
                 <p className="text-xs text-muted-foreground">{label}</p>
               </div>
-            </Card>
+            </div>
           ))}
         </div>
 
         <Card className="overflow-hidden">
-          <div className="flex items-center gap-3 p-4 border-b border-border">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                placeholder="Search proposals or clients..."
-                className="pl-9"
-              />
+          <div className="flex items-center justify-between gap-4 p-4 border-b border-border">
+            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as StatusTab)}>
+              <TabsList size="md">
+                {STATUS_TABS.map((tab) => (
+                  <TabsTrigger key={tab} value={tab} size="md">
+                    {tab}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </Tabs>
+
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search proposals..."
+                  className="pl-9 w-64"
+                  value={search}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
+                />
+              </div>
+
+              <Button size="default" onClick={() => router.push("/all-proposals/generate-proposals/new")}>
+                <Plus className="w-4 h-4" />
+                New Proposal
+              </Button>
             </div>
-            <Button variant="outline" size="sm">
-              <Filter className="w-4 h-4" />
-              Filter
-            </Button>
-            <Button variant="outline" size="sm">
-              <Download className="w-4 h-4" />
-              Export
-            </Button>
-            <Button size="sm">
-              <Plus className="w-4 h-4" />
-              New Proposal
-            </Button>
           </div>
 
           <DataTable
             columns={columns}
-            data={proposals}
+            data={filtered}
             pagination
             defaultPageSize={10}
+            isLoading={false}
           />
         </Card>
       </div>

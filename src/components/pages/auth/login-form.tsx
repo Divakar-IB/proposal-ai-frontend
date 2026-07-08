@@ -16,6 +16,10 @@ import {
   Heading,
 } from "@/components/ui";
 import { useRouter } from "next/navigation";
+import { useMutation } from "@tanstack/react-query";
+import { authService } from "@/services";
+import { useAuth } from "@/providers";
+import type { ApiError } from "@/lib/axios";
 
 const loginSchema = z.object({
   email: z.email("Enter a valid email"),
@@ -36,20 +40,31 @@ const fadeUp = (delay: number = 0) => ({
 const LoginForm = () => {
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const router = useRouter();
+  const { setUser } = useAuth();
 
   const {
     register,
     handleSubmit,
-    formState: { errors, isSubmitting },
+    formState: { errors },
   } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
   });
 
-  const onSubmit = async (data: LoginForm) => {
-    console.log(data);
-    toast.success("Signed in successfully");
-    router.push("/all-proposals");
-  };
+  const { mutate: login, isPending } = useMutation({
+    mutationFn: (data: LoginForm) =>
+      authService.login({ email: data.email, password: data.password }),
+    onSuccess: (response) => {
+      setUser({ role: response.role });
+      toast.success("Signed in successfully");
+      router.push("/all-proposals");
+    },
+    onError: (error: ApiError) => {
+      toast.error(error.message ?? "Invalid email or password");
+      router.push("/all-proposals");
+    },
+  });
+
+  const onSubmit = (data: LoginForm) => login(data);
 
   return (
     <motion.div
@@ -107,14 +122,10 @@ const LoginForm = () => {
         </motion.div>
 
         <motion.div {...fadeUp(0.4)}>
-          <Button type="submit" className="w-full" disabled={isSubmitting}>
-            {isSubmitting ? (
-              "Signing in..."
-            ) : (
-              <span className="flex items-center gap-2">
-                Sign in <ArrowRight className="w-4 h-4" />
-              </span>
-            )}
+          <Button type="submit" className="w-full" loading={isPending}>
+            <span className="flex items-center gap-2">
+              Sign in <ArrowRight className="w-4 h-4" />
+            </span>
           </Button>
         </motion.div>
 
