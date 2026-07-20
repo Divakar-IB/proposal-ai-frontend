@@ -1,8 +1,9 @@
 "use client";
 
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import { authService } from "@/services";
 import { UserRole } from "@/types";
+import { useRouter } from "next/navigation";
 
 interface AuthUser {
   role: UserRole;
@@ -26,7 +27,8 @@ const getInitialUser = (): AuthUser | null => {
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<AuthUser | null>(getInitialUser);
-
+  // const router = useRouter();
+  
   // useEffect(() => {
   //   if (!authService.isAuthenticated()) {
   //     router.replace("/auth/login");

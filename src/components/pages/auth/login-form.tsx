@@ -19,7 +19,9 @@ import { useRouter } from "next/navigation";
 import { useMutation } from "@tanstack/react-query";
 import { authService } from "@/services";
 import { useAuth } from "@/providers";
-import type { ApiError } from "@/lib/axios";
+import type { AxiosError } from "axios";
+
+type LoginError = AxiosError<{ detail: string }>;
 
 const loginSchema = z.object({
   email: z.email("Enter a valid email"),
@@ -58,9 +60,8 @@ const LoginForm = () => {
       toast.success("Signed in successfully");
       router.push("/all-proposals");
     },
-    onError: (error: ApiError) => {
-      toast.error(error.message ?? "Invalid email or password");
-      router.push("/all-proposals");
+    onError: (error: LoginError) => {
+      toast.error(error.response?.data?.detail ?? "Invalid email or password");
     },
   });
 
@@ -130,22 +131,14 @@ const LoginForm = () => {
         </motion.div>
 
         <motion.div
-          className="flex items-center justify-center gap-3"
+          className="flex items-center justify-end"
           {...fadeUp(0.5)}
         >
-          <button
-            type="button"
-            disabled
-            className="text-xs text-primary font-medium disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            Forgot password?
-          </button>
-          <span className="text-border text-xs">|</span>
           <Link
-            href="/auth/reset-password"
+            href="/auth/forgot-password"
             className="text-xs text-primary font-medium hover:underline"
           >
-            Reset password
+            Forgot password?
           </Link>
         </motion.div>
       </form>

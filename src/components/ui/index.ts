@@ -1,3 +1,4 @@
+export { Badge } from "./badge";
 export { Button } from "./button";
 export { Card } from "./card";
 export { Input } from "./input";
@@ -12,3 +13,5 @@ export { Popover, PopoverTrigger, PopoverContent } from "./popover";
 export { Tabs, TabsList, TabsTrigger, TabsContent } from "./tabs";
 export { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "./select";
 export { Textarea } from "./textarea";
+export { Skeleton } from "./skeleton";
+export { ConfirmDialog } from "./confirm-dialog";
