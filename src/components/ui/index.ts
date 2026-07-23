@@ -15,3 +15,4 @@ export { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from ".
 export { Textarea } from "./textarea";
 export { Skeleton } from "./skeleton";
 export { ConfirmDialog } from "./confirm-dialog";
+export { Markdown } from "./markdown";

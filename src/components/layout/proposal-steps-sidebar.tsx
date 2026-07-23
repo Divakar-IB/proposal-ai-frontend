@@ -14,7 +14,7 @@ interface Step {
 
 const STEPS: Step[] = [
   { number: 1, label: "Upload requirements", subtitle: "RFP document", segment: "new" },
-  { number: 2, label: "Tag capabilities", subtitle: "Capability areas", segment: "capabilities" },
+  { number: 2, label: "Configure generation", subtitle: "Mode & depth", segment: "configure" },
   { number: 3, label: "Generate proposal", subtitle: "AI drafting", segment: "generate" },
   { number: 4, label: "Review & refine", subtitle: "Review & edit", segment: "review" },
   { number: 5, label: "Export & submit", subtitle: "PDF · DOCX", segment: "export" },
@@ -22,7 +22,7 @@ const STEPS: Step[] = [
 
 const getActiveStep = (pathname: string): number => {
   const last = pathname.split("/").at(-1);
-  if (last === "capabilities") return 2;
+  if (last === "configure") return 2;
   if (last === "generate") return 3;
   if (last === "review") return 4;
   if (last === "export") return 5;
