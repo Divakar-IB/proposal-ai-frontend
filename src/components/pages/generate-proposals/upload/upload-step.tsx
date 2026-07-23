@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { ArrowRight, FileUp, FileText, ImageIcon, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button, Input, Label, Textarea, FormError, Card } from "@/components/ui";
@@ -33,17 +33,37 @@ const formatSize = (bytes: number): string => {
 
 const UploadStep = () => {
   const router = useRouter();
-  const { setProposalId, markStepComplete, setUploadResult, setUploading } = useProposalWizardStore();
+  const { proposalId, setProposalId, markStepComplete, setUploading } = useProposalWizardStore();
   const inputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState<boolean>(false);
+  const syncedRef = useRef(false);
+
+  const { data: stateData } = useQuery({
+    queryKey: ["proposal-state", proposalId],
+    queryFn: () => proposalService.getProposalState(proposalId!),
+    enabled: !!proposalId,
+    staleTime: 30_000,
+  });
 
   const {
     register,
     handleSubmit,
+    reset,
     formState: { errors },
   } = useForm<FormValues>({ resolver: zodResolver(schema) });
+
+  useEffect(() => {
+    if (stateData?.proposal_details && !syncedRef.current) {
+      syncedRef.current = true;
+      reset({
+        proposal_name: stateData.proposal_details.proposal_name,
+        client_name: stateData.proposal_details.client_name,
+        additional_context: stateData.proposal_details.additional_context ?? "",
+      });
+    }
+  }, [stateData, reset]);
 
   const pickFile = (f: File) => {
     if (f.size > MAX_MB * 1024 * 1024) {
@@ -85,7 +105,6 @@ const UploadStep = () => {
     onSuccess: (data) => {
       const id = String(data.proposal_id);
       setProposalId(id);
-      setUploadResult(data.summary, data.knowledge_matches);
       setUploading(false);
       markStepComplete(1);
       router.push(`/all-proposals/generate-proposals/${id}/configure`);
@@ -160,7 +179,7 @@ const UploadStep = () => {
         />
       </div>
 
-      {/* File preview */}
+      {/* File preview — newly selected file */}
       {file && (
         <div className="flex items-center gap-3 rounded-lg border border-border bg-background px-4 py-3">
           <div className="w-8 h-8 rounded-md bg-primary/10 flex items-center justify-center shrink-0 overflow-hidden">
@@ -186,6 +205,19 @@ const UploadStep = () => {
           >
             <X className="w-4 h-4" />
           </button>
+        </div>
+      )}
+
+      {/* Previously uploaded file — shown when viewing an existing proposal */}
+      {!file && stateData?.proposal_details?.files[0]?.file_name && (
+        <div className="flex items-center gap-3 rounded-lg border border-border bg-background px-4 py-3">
+          <div className="w-8 h-8 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
+            <FileText className="w-4 h-4 text-primary" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-foreground truncate">{stateData.proposal_details.files[0].file_name}</p>
+            <p className="text-xs text-muted-foreground">Previously uploaded · select a new file to replace</p>
+          </div>
         </div>
       )}
 

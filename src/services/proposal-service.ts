@@ -3,8 +3,10 @@ import { api } from "@/lib/axios";
 import { downloadBlob } from "@/lib/download";
 import type {
   Proposal,
+  ProposalListParams,
   ProposalSection,
   ProposalDetail,
+  ProposalState,
   Template,
   CapabilityTag,
   UploadRequirementDocumentRequest,
@@ -13,7 +15,9 @@ import type {
   GenerateProposalRequest,
   RegenerateSectionRequest,
   ExportProposalRequest,
+  UpdateSectionsRequest,
 } from "@/types";
+import type { PaginatedResponse } from "@/types";
 
 class ProposalService {
   async uploadRequirementDocument(
@@ -34,13 +38,8 @@ class ProposalService {
     return data;
   }
 
-  async getAll(): Promise<Proposal[]> {
-    const { data } = await api.get<Proposal[]>("/proposals");
-    return data;
-  }
-
-  async getById(id: string): Promise<Proposal> {
-    const { data } = await api.get<Proposal>(`/proposals/${id}`);
+  async getAll(params?: ProposalListParams): Promise<PaginatedResponse<Proposal>> {
+    const { data } = await api.get<PaginatedResponse<Proposal>>("/proposals", { params });
     return data;
   }
 
@@ -71,8 +70,13 @@ class ProposalService {
     return data;
   }
 
-  async getSections(proposalId: string): Promise<ProposalSection[]> {
-    const { data } = await api.get<ProposalSection[]>(`/proposals/${proposalId}/sections`);
+  async getProposalState(proposalId: string): Promise<ProposalState> {
+    const { data } = await api.get<ProposalState>("/proposal-state", { params: { proposal_id: proposalId } });
+    return data;
+  }
+
+  async getProposalSections(proposalId: string): Promise<ProposalDetail> {
+    const { data } = await api.get<ProposalDetail>("/proposal-sections", { params: { proposal_id: proposalId } });
     return data;
   }
 
@@ -169,9 +173,9 @@ class ProposalService {
     return data;
   }
 
-  async updateSection(id: string, content: string): Promise<ProposalSection> {
-    const { data } = await api.patch<ProposalSection>(`/proposals/sections/${id}`, { content });
-    return data;
+  async updateProposalSections(payload: UpdateSectionsRequest): Promise<void> {
+    const { proposal_id, ...body } = payload;
+    await api.patch("/proposal-sections", body, { params: { proposal_id } });
   }
 
   async exportProposal(payload: ExportProposalRequest): Promise<void> {

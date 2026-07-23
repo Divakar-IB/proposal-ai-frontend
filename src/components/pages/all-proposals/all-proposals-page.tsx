@@ -1,92 +1,166 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import type { PaginationState } from "@tanstack/react-table";
 import {
   Search,
   Plus,
   FileText,
   CheckCircle2,
   RefreshCw,
-  Send,
   Eye,
-  PenLine,
   Trash2,
   Download,
+  ClipboardList,
+  Loader2,
 } from "lucide-react";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Button, Input, Card, DataTable, Tabs, TabsList, TabsTrigger } from "@/components/ui";
 import type { ColumnDef } from "@/components/ui";
 import { PageHeader, ActionMenu } from "@/components/shared";
+import { proposalService } from "@/services";
+import { useProposalWizardStore } from "@/store";
+import type { Proposal, ProposalStatus } from "@/types";
 
-const stats = [
-  {
-    label: "Total Proposals",
-    value: 6,
-    icon: FileText,
-    color: "text-blue-500",
-    bg: "bg-blue-50",
-  },
-  {
-    label: "Completed",
-    value: 2,
-    icon: CheckCircle2,
-    color: "text-green-500",
-    bg: "bg-green-50",
-  },
-  {
-    label: "In Progress",
-    value: 3,
-    icon: RefreshCw,
-    color: "text-orange-500",
-    bg: "bg-orange-50",
-  },
-  {
-    label: "Submitted",
-    value: 1,
-    icon: Send,
-    color: "text-violet-500",
-    bg: "bg-violet-50",
-  },
-];
+const STATUS_TABS = ["All", "In Progress", "Generating", "In Review", "Approved", "Done", "Failed"] as const;
+type StatusTab = (typeof STATUS_TABS)[number];
 
-interface Proposal {
-  id: string;
-  name: string;
-  client: string;
-  status: string;
-  created: string;
-}
-
-const proposals: Proposal[] = [
-  { id: "1", name: "Cloud Migration Strategy", client: "Acme Corp", status: "In Review", created: "Jan 15, 2024" },
-  { id: "2", name: "Security Audit Framework", client: "BankCo Ltd", status: "Done", created: "Jan 12, 2024" },
-  { id: "3", name: "DevOps Transformation", client: "RetailGiant", status: "Draft", created: "Jan 10, 2024" },
-  { id: "4", name: "Data Lake Implementation", client: "HealthTech Inc", status: "Submitted", created: "Jan 8, 2024" },
-  { id: "5", name: "AI Integration Roadmap", client: "FinanceFirst", status: "Generating", created: "Jan 5, 2024" },
-  { id: "6", name: "Kubernetes Migration Plan", client: "LogiCorp", status: "Draft", created: "Jan 3, 2024" },
-];
-
-const statusStyles: Record<string, string> = {
-  "In Review": "bg-blue-50 text-blue-600",
-  Done: "bg-green-50 text-green-600",
-  Draft: "bg-gray-100 text-gray-500",
-  Submitted: "bg-violet-50 text-violet-600",
-  Generating: "bg-orange-50 text-orange-600",
+const TAB_TO_STATUS: Record<StatusTab, ProposalStatus | undefined> = {
+  "All": undefined,
+  "In Progress": "inprogress",
+  "Generating": "generating",
+  "In Review": "review",
+  "Approved": "approved",
+  "Done": "done",
+  "Failed": "failed",
 };
 
+const STATUS_LABEL: Record<ProposalStatus, string> = {
+  inprogress: "In Progress",
+  generating: "Generating",
+  review: "In Review",
+  approved: "Approved",
+  done: "Done",
+  failed: "Failed",
+};
 
-const STATUS_TABS = ["All", "Draft", "In Review", "Generating", "Submitted", "Done"] as const;
-type StatusTab = (typeof STATUS_TABS)[number];
+const STATUS_STYLE: Record<ProposalStatus, string> = {
+  inprogress: "bg-orange-50 text-orange-600 dark:bg-orange-500/10 dark:text-orange-400",
+  generating: "bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400",
+  review: "bg-violet-50 text-violet-600 dark:bg-violet-500/10 dark:text-violet-400",
+  approved: "bg-teal-50 text-teal-600 dark:bg-teal-500/10 dark:text-teal-400",
+  done: "bg-green-50 text-green-600 dark:bg-green-500/10 dark:text-green-400",
+  failed: "bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400",
+};
+
+const formatDate = (iso: string) =>
+  new Date(iso).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+
+const PAGE_SIZE = 10;
+
+const STEP_SEGMENT: Record<string, string> = {
+  upload: "configure",
+  generation: "generate",
+  review: "review",
+  export: "export",
+};
+
+const STEP_COMPLETE_MAP: Record<string, number[]> = {
+  upload: [1],
+  generation: [1, 2],
+  review: [1, 2, 3],
+  export: [1, 2, 3, 4],
+};
 
 export const AllProposalsPage = () => {
   const router = useRouter();
+  const queryClient = useQueryClient();
+  const { setProposalId, markStepComplete } = useProposalWizardStore();
+
   const [activeTab, setActiveTab] = useState<StatusTab>("All");
   const [search, setSearch] = useState("");
+  const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: PAGE_SIZE });
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [viewingId, setViewingId] = useState<number | null>(null);
+
+  const handleView = async (proposal: Proposal) => {
+    setViewingId(proposal.id);
+    try {
+      const state = await proposalService.getProposalState(String(proposal.id));
+      setProposalId(String(proposal.id));
+      (STEP_COMPLETE_MAP[state.current_step] ?? []).forEach((step) => markStepComplete(step));
+      const segment = STEP_SEGMENT[state.current_step] ?? "review";
+      router.push(`/all-proposals/generate-proposals/${proposal.id}/${segment}`);
+    } catch {
+      toast.error("Failed to load proposal.");
+      setViewingId(null);
+    }
+  };
+
+  const handleTabChange = (tab: StatusTab) => {
+    setActiveTab(tab);
+    setPagination((p) => ({ ...p, pageIndex: 0 }));
+  };
+
+  const handleSearchChange = (value: string) => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      setSearch(value);
+      setPagination((p) => ({ ...p, pageIndex: 0 }));
+    }, 350);
+  };
+
+  const queryParams = {
+    search: search || undefined,
+    status: TAB_TO_STATUS[activeTab],
+    page: pagination.pageIndex + 1,
+    limit: pagination.pageSize,
+  };
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["proposals", queryParams],
+    queryFn: () => proposalService.getAll(queryParams),
+  });
+
+  // Lightweight stat queries — limit 1 just to read `total`
+  const { data: statDone } = useQuery({
+    queryKey: ["proposals", "stats", "done"],
+    queryFn: () => proposalService.getAll({ status: "done", limit: 1, page: 1 }),
+    staleTime: 30_000,
+  });
+  const { data: statInProgress } = useQuery({
+    queryKey: ["proposals", "stats", "inprogress"],
+    queryFn: () => proposalService.getAll({ status: "inprogress", limit: 1, page: 1 }),
+    staleTime: 30_000,
+  });
+  const { data: statReview } = useQuery({
+    queryKey: ["proposals", "stats", "review"],
+    queryFn: () => proposalService.getAll({ status: "review", limit: 1, page: 1 }),
+    staleTime: 30_000,
+  });
+
+  const stats = [
+    { label: "Total Proposals", value: data?.total ?? "—", icon: FileText, color: "text-blue-500", bg: "bg-blue-50 dark:bg-blue-500/10" },
+    { label: "Completed", value: statDone?.total ?? "—", icon: CheckCircle2, color: "text-green-500", bg: "bg-green-50 dark:bg-green-500/10" },
+    { label: "In Progress", value: statInProgress?.total ?? "—", icon: RefreshCw, color: "text-orange-500", bg: "bg-orange-50 dark:bg-orange-500/10" },
+    { label: "In Review", value: statReview?.total ?? "—", icon: ClipboardList, color: "text-violet-500", bg: "bg-violet-50 dark:bg-violet-500/10" },
+  ];
+
+  const { mutate: deleteProposal } = useMutation({
+    mutationFn: (id: string) => proposalService.delete(id),
+    onSuccess: () => {
+      toast.success("Proposal deleted");
+      queryClient.invalidateQueries({ queryKey: ["proposals"] });
+    },
+    onError: () => toast.error("Failed to delete proposal"),
+  });
 
   const columns: ColumnDef<Proposal, string>[] = [
     {
-      accessorKey: "name",
+      accessorKey: "title",
       header: "Proposal Name",
       enableSorting: true,
       cell: ({ getValue }) => (
@@ -94,7 +168,7 @@ export const AllProposalsPage = () => {
       ),
     },
     {
-      accessorKey: "client",
+      accessorKey: "client_name",
       header: "Client",
       enableSorting: true,
       cell: ({ getValue }) => (
@@ -105,25 +179,20 @@ export const AllProposalsPage = () => {
       accessorKey: "status",
       header: "Status",
       cell: ({ getValue }) => {
-        const status = getValue();
+        const status = getValue() as ProposalStatus;
         return (
-          <span
-            className={cn(
-              "text-xs font-medium px-2.5 py-1 rounded-full",
-              statusStyles[status],
-            )}
-          >
-            {status}
+          <span className={cn("text-xs font-medium px-2.5 py-1 rounded-full", STATUS_STYLE[status])}>
+            {STATUS_LABEL[status]}
           </span>
         );
       },
     },
     {
-      accessorKey: "created",
+      accessorKey: "created_at",
       header: "Created",
       enableSorting: true,
       cell: ({ getValue }) => (
-        <span className="text-muted-foreground">{getValue()}</span>
+        <span className="text-muted-foreground">{formatDate(getValue())}</span>
       ),
     },
     {
@@ -131,30 +200,28 @@ export const AllProposalsPage = () => {
       header: "Action",
       size: 40,
       cell: ({ row }) => {
-        const { id } = row.original;
-        const base = `/all-proposals/generate-proposals/${id}`;
+        const proposal = row.original;
+        const base = `/all-proposals/generate-proposals/${proposal.id}`;
+        if (viewingId === proposal.id) {
+          return <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />;
+        }
         return (
           <ActionMenu
             items={[
-              { label: "View", icon: Eye, onClick: () => router.push(`${base}/review`) },
-              { label: "Edit", icon: PenLine, onClick: () => router.push(`${base}/review`) },
+              { label: "View", icon: Eye, onClick: () => handleView(proposal) },
               { label: "Download", icon: Download, onClick: () => router.push(`${base}/export`) },
-              { label: "Delete", icon: Trash2, onClick: () => {}, variant: "destructive" },
+              {
+                label: "Delete",
+                icon: Trash2,
+                onClick: () => deleteProposal(String(proposal.id)),
+                variant: "destructive",
+              },
             ]}
           />
         );
       },
     },
   ];
-
-  const filtered = proposals.filter((p) => {
-    const matchesTab = activeTab === "All" || p.status === activeTab;
-    const matchesSearch =
-      search === "" ||
-      p.name.toLowerCase().includes(search.toLowerCase()) ||
-      p.client.toLowerCase().includes(search.toLowerCase());
-    return matchesTab && matchesSearch;
-  });
 
   return (
     <div className="flex flex-col relative">
@@ -167,18 +234,11 @@ export const AllProposalsPage = () => {
         <div className="grid grid-cols-4 gap-4">
           {stats.map(({ label, value, icon: Icon, color, bg }) => (
             <div key={label} className="p-5 flex items-center gap-4 card-surface">
-              <div
-                className={cn(
-                  "w-10 h-10 rounded-full flex items-center justify-center shrink-0",
-                  bg,
-                )}
-              >
+              <div className={cn("w-10 h-10 rounded-full flex items-center justify-center shrink-0", bg)}>
                 <Icon className={cn("w-5 h-5", color)} />
               </div>
               <div>
-                <p className="text-2xl font-bold text-foreground leading-none mb-1">
-                  {value}
-                </p>
+                <p className="text-2xl font-bold text-foreground leading-none mb-1">{value}</p>
                 <p className="text-xs text-muted-foreground">{label}</p>
               </div>
             </div>
@@ -187,7 +247,7 @@ export const AllProposalsPage = () => {
 
         <Card className="overflow-hidden">
           <div className="flex items-center justify-between gap-4 p-4 border-b border-border">
-            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as StatusTab)}>
+            <Tabs value={activeTab} onValueChange={(v) => handleTabChange(v as StatusTab)}>
               <TabsList size="md">
                 {STATUS_TABS.map((tab) => (
                   <TabsTrigger key={tab} value={tab} size="md">
@@ -203,8 +263,7 @@ export const AllProposalsPage = () => {
                 <Input
                   placeholder="Search proposals..."
                   className="pl-9 w-64"
-                  value={search}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleSearchChange(e.target.value)}
                 />
               </div>
 
@@ -217,10 +276,14 @@ export const AllProposalsPage = () => {
 
           <DataTable
             columns={columns}
-            data={filtered}
+            data={data?.data ?? []}
             pagination
-            defaultPageSize={10}
-            isLoading={false}
+            defaultPageSize={PAGE_SIZE}
+            isLoading={isLoading}
+            manualPagination
+            totalRows={data?.total}
+            paginationState={pagination}
+            onPaginationChange={setPagination}
           />
         </Card>
       </div>

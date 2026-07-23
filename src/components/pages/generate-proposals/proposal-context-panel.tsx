@@ -1,7 +1,11 @@
 "use client";
 
+import { usePathname } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 import { Markdown } from "@/components/ui";
+import { proposalService } from "@/services";
 import { useProposalWizardStore } from "@/store";
+import type { KnowledgeMatch } from "@/types";
 
 interface SectionProps {
   title: string;
@@ -29,7 +33,26 @@ const EmptyState = () => (
 );
 
 const ProposalContextPanel = () => {
-  const { proposalId, summary, knowledgeMatches, isUploading } = useProposalWizardStore();
+  const { isUploading } = useProposalWizardStore();
+
+  const pathname = usePathname();
+  const segments = pathname.split("/");
+  const gpIndex = segments.indexOf("generate-proposals");
+  const proposalId =
+    gpIndex >= 0 && segments[gpIndex + 1] && segments[gpIndex + 1] !== "new"
+      ? segments[gpIndex + 1]
+      : null;
+
+  const { data: stateData } = useQuery({
+    queryKey: ["proposal-state", proposalId],
+    queryFn: () => proposalService.getProposalState(proposalId!),
+    enabled: !!proposalId,
+    staleTime: 30_000,
+  });
+
+  const summary = stateData?.summary?.summary ?? null;
+  const knowledgeMatches = stateData?.summary?.knowledge_matches ?? [];
+  const capabilityTags = stateData?.summary?.capability_tags ?? [];
 
   return (
     <aside className="w-125 shrink-0 border-l border-border bg-white flex flex-col h-full overflow-y-auto">
@@ -81,7 +104,7 @@ const ProposalContextPanel = () => {
           {knowledgeMatches.length > 0 && (
             <Section title="Knowledge Match">
               <div className="flex flex-col gap-3">
-                {knowledgeMatches.map((match) => (
+                {knowledgeMatches.map((match: KnowledgeMatch) => (
                   <div key={match.document_id} className="flex flex-col gap-1">
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-xs font-medium text-foreground truncate">
@@ -98,6 +121,24 @@ const ProposalContextPanel = () => {
                       />
                     </div>
                   </div>
+                ))}
+              </div>
+            </Section>
+          )}
+
+          {capabilityTags.length > 0 && (
+            <Section title="Capability Tags">
+              <div className="flex flex-wrap gap-1.5">
+                {capabilityTags.map((tag) => (
+                  <span
+                    key={tag.name}
+                    className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-primary/8 border border-primary/15 text-[11px] font-medium text-primary"
+                  >
+                    {tag.name}
+                    <span className="text-primary/60 font-normal">
+                      {Math.round(tag.confidence * 100)}%
+                    </span>
+                  </span>
                 ))}
               </div>
             </Section>

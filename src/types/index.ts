@@ -6,6 +6,7 @@ export type { KbCategory, KbDocument, PaginatedResponse, UploadDocumentRequest, 
 export type {
   Proposal,
   ProposalStatus,
+  ProposalListParams,
   GenerationMode,
   ProposalFocus,
   ProposalSection,
@@ -22,5 +23,7 @@ export type {
   ExportProposalResponse,
   ProposalDetailSection,
   ProposalDetail,
+  ProposalState,
   Template,
+  UpdateSectionsRequest,
 } from "./proposal";

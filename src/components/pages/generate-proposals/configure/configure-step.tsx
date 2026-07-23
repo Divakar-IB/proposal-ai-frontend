@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 import {
   ArrowLeft,
   Sparkles,
@@ -14,6 +15,7 @@ import {
 } from "lucide-react";
 import { Button, Card } from "@/components/ui";
 import { StepHeader } from "@/components/pages/generate-proposals";
+import { proposalService } from "@/services";
 import { useProposalWizardStore } from "@/store";
 import { cn } from "@/lib/utils";
 import type { GenerationMode } from "@/types";
@@ -48,20 +50,52 @@ const PAGE_PRESETS = [5, 10, 15, 20];
 
 const ConfigureStep = ({ proposalId }: ConfigureStepProps) => {
   const router = useRouter();
-  const { markStepComplete, setGenerationConfig } = useProposalWizardStore();
+  const { markStepComplete } = useProposalWizardStore();
 
   const [mode, setMode] = useState<GenerationMode>("llm_only");
   const [pageCount, setPageCount] = useState(10);
+  const syncedRef = useRef(false);
+
+  const { data: stateData, isLoading } = useQuery({
+    queryKey: ["proposal-state", proposalId],
+    queryFn: () => proposalService.getProposalState(proposalId),
+    staleTime: 30_000,
+    retry: 1,
+  });
+
+  useEffect(() => {
+    if (stateData?.generation_config && !syncedRef.current) {
+      syncedRef.current = true;
+      setMode(stateData.generation_config.generation_mode);
+      setPageCount(stateData.generation_config.page_count);
+    }
+  }, [stateData]);
 
   const adjustPage = (delta: number) => {
     setPageCount((prev) => Math.min(50, Math.max(1, prev + delta)));
   };
 
   const handleGenerate = () => {
-    setGenerationConfig({ pageCount, generationMode: mode });
     markStepComplete(2);
     router.push(`/all-proposals/generate-proposals/${proposalId}/generate`);
   };
+
+  if (isLoading) {
+    return (
+      <Card className="max-w-6xl mx-auto py-8 px-8 flex flex-col gap-8">
+        <div className="flex flex-col gap-2">
+          <div className="h-5 w-40 bg-muted rounded animate-pulse" />
+          <div className="h-3 w-72 bg-muted rounded animate-pulse" />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          {[0, 1].map((i) => (
+            <div key={i} className="h-24 rounded-xl border border-border bg-muted/20 animate-pulse" />
+          ))}
+        </div>
+        <div className="h-10 w-64 bg-muted rounded animate-pulse" />
+      </Card>
+    );
+  }
 
   return (
     <Card className="max-w-6xl mx-auto py-8 px-8 flex flex-col gap-8">
@@ -115,7 +149,6 @@ const ConfigureStep = ({ proposalId }: ConfigureStepProps) => {
       <div className="flex flex-col gap-3">
         <p className="text-sm font-semibold text-foreground">Number of pages</p>
         <div className="flex items-center gap-4">
-          {/* Stepper */}
           <div className="flex items-center gap-0 rounded-lg border border-border overflow-hidden">
             <button
               type="button"
@@ -138,7 +171,6 @@ const ConfigureStep = ({ proposalId }: ConfigureStepProps) => {
             </button>
           </div>
 
-          {/* Presets */}
           <div className="flex items-center gap-2">
             {PAGE_PRESETS.map((p) => (
               <button
