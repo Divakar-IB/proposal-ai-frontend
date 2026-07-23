@@ -1,9 +1,11 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
+import { Markdown } from "@/components/ui";
 import { proposalService } from "@/services";
 import { useProposalWizardStore } from "@/store";
-import { cn } from "@/lib/utils";
+import type { KnowledgeMatch } from "@/types";
 
 interface SectionProps {
   title: string;
@@ -12,7 +14,7 @@ interface SectionProps {
 
 const Section = ({ title, children }: SectionProps) => (
   <div className="flex flex-col gap-3">
-    <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+    <p className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
       {title}
     </p>
     {children}
@@ -31,13 +33,26 @@ const EmptyState = () => (
 );
 
 const ProposalContextPanel = () => {
-  const { proposalId } = useProposalWizardStore();
+  const { isUploading } = useProposalWizardStore();
 
-  const { data: proposal } = useQuery({
-    queryKey: ["proposals", proposalId],
-    queryFn: () => proposalService.getById(proposalId!),
+  const pathname = usePathname();
+  const segments = pathname.split("/");
+  const gpIndex = segments.indexOf("generate-proposals");
+  const proposalId =
+    gpIndex >= 0 && segments[gpIndex + 1] && segments[gpIndex + 1] !== "new"
+      ? segments[gpIndex + 1]
+      : null;
+
+  const { data: stateData } = useQuery({
+    queryKey: ["proposal-state", proposalId],
+    queryFn: () => proposalService.getProposalState(proposalId!),
     enabled: !!proposalId,
+    staleTime: 30_000,
   });
+
+  const summary = stateData?.summary?.summary ?? null;
+  const knowledgeMatches = stateData?.summary?.knowledge_matches ?? [];
+  const capabilityTags = stateData?.summary?.capability_tags ?? [];
 
   return (
     <aside className="w-125 shrink-0 border-l border-border bg-white flex flex-col h-full overflow-y-auto">
@@ -48,69 +63,86 @@ const ProposalContextPanel = () => {
         </p>
       </div>
 
-      {!proposalId ? (
+      {isUploading ? (
+        <div className="px-5 py-5 flex flex-col gap-6">
+          <Section title="Summary">
+            <div className="flex flex-col gap-3">
+              {[100, 92, 84, 70, 88, 60, 75, 34, 67, 34, 89, 100, 92, 84, 70, 88, 60, 75, 34, 67, 34, 89].map((w, i) => (
+                <div key={i} className="h-3 bg-muted rounded animate-pulse" style={{ width: `${w}%` }} />
+              ))}
+            </div>
+          </Section>
+          <Section title="Knowledge Match">
+            <div className="flex flex-col gap-3">
+              {[80, 60].map((w, i) => (
+                <div key={i} className="flex flex-col gap-1">
+                  <div className="h-3 bg-muted rounded animate-pulse w-28" />
+                  <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                    <div className="h-full rounded-full bg-primary/20 animate-pulse" style={{ width: `${w}%` }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Section>
+        </div>
+      ) : !proposalId ? (
         <EmptyState />
       ) : (
         <div className="px-5 py-5 flex flex-col gap-6">
-          {/* Placeholder sections — replace with real data from proposal analysis API */}
-          <Section title="Client Requirements">
-            <ul className="flex flex-col gap-2">
-              {["—", "—", "—"].map((_, i) => (
-                <li key={i} className="flex items-start gap-2">
-                  <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-primary/60 shrink-0" />
-                  <div className="h-3 bg-muted rounded w-full animate-pulse" />
-                </li>
-              ))}
-            </ul>
+          <Section title="Summary">
+            {summary ? (
+              <Markdown>{summary}</Markdown>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {[100, 90, 75].map((w, i) => (
+                  <div key={i} className="h-3 bg-muted rounded animate-pulse" style={{ width: `${w}%` }} />
+                ))}
+              </div>
+            )}
           </Section>
 
-          <Section title="Capability Tags">
-            <div className="flex flex-wrap gap-1.5">
-              {[60, 48, 72, 56, 64].map((w, i) => (
-                <div
-                  key={i}
-                  className="h-6 rounded-full bg-muted animate-pulse"
-                  style={{ width: w }}
-                />
-              ))}
-            </div>
-          </Section>
-
-          <Section title="Knowledge Match">
-            <div className="flex flex-col gap-2.5">
-              {[94, 88, 76, 71].map((pct, i) => (
-                <div key={i} className="flex items-center gap-2">
-                  <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
-                    <div
-                      className="h-full rounded-full bg-primary/70"
-                      style={{ width: `${pct}%` }}
-                    />
+          {knowledgeMatches.length > 0 && (
+            <Section title="Knowledge Match">
+              <div className="flex flex-col gap-3">
+                {knowledgeMatches.map((match: KnowledgeMatch) => (
+                  <div key={match.document_id} className="flex flex-col gap-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-medium text-foreground truncate">
+                        {match.title}
+                      </span>
+                      <span className="text-xs tabular-nums text-muted-foreground shrink-0">
+                        {match.match_percent}%
+                      </span>
+                    </div>
+                    <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-primary/70"
+                        style={{ width: `${match.match_percent}%` }}
+                      />
+                    </div>
                   </div>
-                  <span className="text-xs tabular-nums text-muted-foreground w-8 text-right">
-                    {pct}%
-                  </span>
-                  <div className="h-3 w-12 bg-muted rounded animate-pulse" />
-                </div>
-              ))}
-            </div>
-          </Section>
+                ))}
+              </div>
+            </Section>
+          )}
 
-          <Section title="Sources Retrieved">
-            <div className="flex flex-col gap-2">
-              {(
-                [
-                  ["Case studies", null],
-                  ["Tech docs", null],
-                  ["Past proposals", null],
-                ] as const
-              ).map(([label]) => (
-                <div key={label} className="flex items-center justify-between">
-                  <span className="text-xs text-muted-foreground">{label}</span>
-                  <div className="h-3 w-14 bg-muted rounded animate-pulse" />
-                </div>
-              ))}
-            </div>
-          </Section>
+          {capabilityTags.length > 0 && (
+            <Section title="Capability Tags">
+              <div className="flex flex-wrap gap-1.5">
+                {capabilityTags.map((tag) => (
+                  <span
+                    key={tag.name}
+                    className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-primary/8 border border-primary/15 text-[11px] font-medium text-primary"
+                  >
+                    {tag.name}
+                    <span className="text-primary/60 font-normal">
+                      {Math.round(tag.confidence * 100)}%
+                    </span>
+                  </span>
+                ))}
+              </div>
+            </Section>
+          )}
         </div>
       )}
     </aside>

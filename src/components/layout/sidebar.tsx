@@ -2,27 +2,29 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useEffect } from "react";
-import { ArrowLeft, ChevronLeft, ChevronRight, LogOut, Plus } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { BrandLogo } from "@/components/ui";
 import { useSidebarStore } from "@/store/use-sidebar-store";
+import { useAuth } from "@/providers";
+import { UserRole } from "@/types";
 import ProposalStepsSidebar from "./proposal-steps-sidebar";
 
 const Sidebar = () => {
   const pathname = usePathname();
-  const { navItems, isCollapsed, setActiveHref, toggleSidebar } =
-    useSidebarStore();
-  const router = useRouter();
-
+  const { navItems, isCollapsed, setActiveHref, toggleSidebar } = useSidebarStore();
+  const { role } = useAuth();
   const isWizardMode = pathname.startsWith("/all-proposals/generate-proposals");
+
+  const visibleNavItems = navItems.filter(
+    (item) => !item.adminOnly || role === UserRole.OrgAdmin,
+  );
 
   useEffect(() => {
     setActiveHref(pathname);
   }, [pathname, setActiveHref]);
-
-  const handleSignOut = () => router.push("/auth/login");
 
   return (
     <aside
@@ -108,7 +110,7 @@ const Sidebar = () => {
                   Workspace
                 </p>
               )}
-              {navItems.map(({ href, label, icon: Icon }) => {
+              {visibleNavItems.map(({ href, label, icon: Icon }) => {
                 const active =
                   pathname === href || pathname.startsWith(href + "/");
                 return (
@@ -133,20 +135,7 @@ const Sidebar = () => {
           </>
         )}
 
-        {/* Sign out */}
-        <div className="px-2 py-4 border-t border-border">
-          <button
-            onClick={handleSignOut}
-            title={isCollapsed ? "Sign out" : undefined}
-            className={cn(
-              "flex items-center w-full rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors",
-              isCollapsed ? "justify-center p-2.5" : "gap-3 px-3 py-2.5",
-            )}
-          >
-            <LogOut className="w-4 h-4 shrink-0" />
-            {!isCollapsed && <span>Sign out</span>}
-          </button>
-        </div>
+
       </div>
 
       {/* Toggle button */}

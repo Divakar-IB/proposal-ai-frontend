@@ -1,18 +1,29 @@
 export { UserRole } from "./auth";
-export type { LoginRequest, LoginResponse, ResetPasswordRequest } from "./auth";
-export type { KbCategory, CreateCategoryRequest, UpdateCategoryRequest } from "./kb";
+export type { LoginRequest, LoginResponse, ResetPasswordRequest, ForgotPasswordRequest, VerifyOtpRequest, VerifyOtpResponse, NewPasswordRequest, UserProfile, UpdateProfileRequest } from "./auth";
+export type { OrgProfile, UpdateOrgProfileRequest, TeamMember, InviteTeamMemberRequest } from "./org";
+export { DocumentStatus } from "./kb";
+export type { KbCategory, KbDocument, PaginatedResponse, UploadDocumentRequest, UpdateDocumentRequest, CreateCategoryRequest, UpdateCategoryRequest } from "./kb";
 export type {
   Proposal,
   ProposalStatus,
+  ProposalListParams,
+  GenerationMode,
   ProposalFocus,
   ProposalSection,
   ProposalSectionStatus,
   CapabilityTag,
   ExportFormat,
-  CreateProposalRequest,
+  KnowledgeMatch,
+  UploadRequirementDocumentRequest,
+  UploadRequirementDocumentResponse,
   TagCapabilitiesRequest,
   GenerateProposalRequest,
   RegenerateSectionRequest,
   ExportProposalRequest,
   ExportProposalResponse,
+  ProposalDetailSection,
+  ProposalDetail,
+  ProposalState,
+  Template,
+  UpdateSectionsRequest,
 } from "./proposal";

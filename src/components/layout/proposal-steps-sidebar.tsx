@@ -14,7 +14,7 @@ interface Step {
 
 const STEPS: Step[] = [
   { number: 1, label: "Upload requirements", subtitle: "RFP document", segment: "new" },
-  { number: 2, label: "Tag capabilities", subtitle: "Capability areas", segment: "capabilities" },
+  { number: 2, label: "Configure generation", subtitle: "Mode & depth", segment: "configure" },
   { number: 3, label: "Generate proposal", subtitle: "AI drafting", segment: "generate" },
   { number: 4, label: "Review & refine", subtitle: "Review & edit", segment: "review" },
   { number: 5, label: "Export & submit", subtitle: "PDF · DOCX", segment: "export" },
@@ -22,7 +22,7 @@ const STEPS: Step[] = [
 
 const getActiveStep = (pathname: string): number => {
   const last = pathname.split("/").at(-1);
-  if (last === "capabilities") return 2;
+  if (last === "configure") return 2;
   if (last === "generate") return 3;
   if (last === "review") return 4;
   if (last === "export") return 5;
@@ -42,8 +42,23 @@ interface ProposalStepsSidebarProps {
 const ProposalStepsSidebar = ({ isCollapsed }: ProposalStepsSidebarProps) => {
   const pathname = usePathname();
   const router = useRouter();
-  const { proposalId, completedSteps } = useProposalWizardStore();
+  const { proposalId: storeProposalId, completedSteps } = useProposalWizardStore();
   const activeStep = getActiveStep(pathname);
+
+  // When navigating directly to a step (e.g. "View" from all-proposals),
+  // the store is empty. Derive proposalId and completed steps from the URL.
+  const segments = pathname.split("/");
+  const gpIndex = segments.indexOf("generate-proposals");
+  const urlProposalId = gpIndex >= 0 && segments[gpIndex + 1] !== "new"
+    ? segments[gpIndex + 1]
+    : null;
+
+  const proposalId = storeProposalId ?? urlProposalId;
+
+  // If store hasn't tracked progress, treat all steps before the current one as done
+  const effectiveCompletedSteps = completedSteps.length > 0
+    ? completedSteps
+    : Array.from({ length: activeStep - 1 }, (_, i) => i + 1);
 
   return (
     <>
@@ -57,7 +72,7 @@ const ProposalStepsSidebar = ({ isCollapsed }: ProposalStepsSidebarProps) => {
         {STEPS.map((step, index) => {
           const isLast = index === STEPS.length - 1;
           const isActive = step.number === activeStep;
-          const isCompleted = completedSteps.includes(step.number);
+          const isCompleted = effectiveCompletedSteps.includes(step.number);
           const isClickable = isCompleted || isActive;
           const href = getStepHref(step, proposalId);
 

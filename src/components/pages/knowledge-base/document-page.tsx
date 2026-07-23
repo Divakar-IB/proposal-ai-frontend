@@ -1,11 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { useForm, Controller } from "react-hook-form";
+import { useForm, Controller, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useRouter } from "next/navigation";
 import { UploadCloud, X, Tag } from "lucide-react";
+import { useQuery, useMutation, useQueryClient, skipToken } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
   Button,
@@ -14,6 +16,7 @@ import {
   Heading,
   Input,
   Label,
+  Skeleton,
   Textarea,
   Select,
   SelectTrigger,
@@ -22,7 +25,8 @@ import {
   SelectItem,
 } from "@/components/ui";
 import { PageHeader, Breadcrumb } from "@/components/shared";
-import { CATEGORIES } from "@/lib/kb-data";
+import { kbService } from "@/services";
+import { DocumentStatus } from "@/types";
 
 const ACCEPTED_TYPES = [
   "application/pdf",
@@ -31,25 +35,18 @@ const ACCEPTED_TYPES = [
 ];
 
 const schema = z.object({
-  name: z.string().min(1, "Document name is required"),
+  name:        z.string().min(1, "Document name is required"),
   description: z.string().min(1, "Description is required"),
-  category: z.string().min(1, "Category is required"),
-  tags: z.array(z.string()).optional(),
-  status: z.enum(["draft", "verified"]),
+  category_id: z.string().min(1, "Category is required"),
+  tags:        z.array(z.string()).optional(),
+  status:      z.enum([DocumentStatus.Active, DocumentStatus.Inactive]),
   file: z
-    .instanceof(File, { message: "Please upload a file" })
-    .refine(
-      (f) => ACCEPTED_TYPES.includes(f.type),
-      "Only PDF, DOCX, and TXT files are accepted",
-    )
+    .instanceof(File)
+    .refine((f) => ACCEPTED_TYPES.includes(f.type), "Only PDF, DOCX, and TXT files are accepted")
     .optional(),
 });
 
 type DocumentFormValues = z.infer<typeof schema>;
-
-const SELECTABLE_CATEGORIES = CATEGORIES.filter(
-  (c) => c.name !== "All Documents",
-);
 
 interface DocumentPageProps {
   id: string;
@@ -58,29 +55,74 @@ interface DocumentPageProps {
 export const DocumentPage = ({ id }: DocumentPageProps) => {
   const isNew = id === "new";
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [tagInput, setTagInput] = useState<string>("");
   const [dragOver, setDragOver] = useState<boolean>(false);
+  const [showCurrentFile, setShowCurrentFile] = useState<boolean>(true);
+
+  const { data: categories = [] } = useQuery({
+    queryKey: ["kb-categories"],
+    queryFn: () => kbService.getCategories(),
+  });
+
+  const { data: doc, isLoading: isLoadingDoc } = useQuery({
+    queryKey: ["kb-document", id],
+    queryFn: isNew ? skipToken : () => kbService.getDocument(Number(id)),
+  });
+
+  const { mutate: uploadDocument, isPending: isUploading } = useMutation({
+    mutationFn: (payload: Parameters<typeof kbService.uploadDocument>[0]) =>
+      kbService.uploadDocument(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["kb-documents"] });
+      toast.success("Document uploaded successfully");
+      router.push("/knowledge-base");
+    },
+    onError: () => toast.error("Failed to upload document"),
+  });
+
+  const { mutate: updateDocument, isPending: isUpdating } = useMutation({
+    mutationFn: (payload: Parameters<typeof kbService.updateDocument>[0]) =>
+      kbService.updateDocument(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["kb-documents"] });
+      queryClient.invalidateQueries({ queryKey: ["kb-document", id] });
+      toast.success("Document updated successfully");
+      router.push("/knowledge-base");
+    },
+    onError: () => toast.error("Failed to update document"),
+  });
+
+  const isPending = isUploading || isUpdating;
 
   const {
     register,
     handleSubmit,
     control,
-    watch,
     setValue,
-    formState: { errors, isSubmitting },
+    formState: { errors },
   } = useForm<DocumentFormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
       name: "",
       description: "",
-      category: "",
+      category_id: "",
       tags: [],
-      status: "draft",
+      status: DocumentStatus.Active,
     },
+    values: !isNew && doc ? {
+      name:        doc.document_name,
+      description: doc.description,
+      category_id: String(doc.category_id),
+      tags:        doc.tags ?? [],
+      status:      doc.availability_status === "active"
+        ? DocumentStatus.Active
+        : DocumentStatus.Inactive,
+    } : undefined,
   });
 
-  const tags = watch("tags") ?? [];
-  const file = watch("file");
+  const tags = useWatch({ control, name: "tags" }) ?? [];
+  const file = useWatch({ control, name: "file" });
 
   const addTag = (value: string) => {
     const trimmed = value.trim();
@@ -91,10 +133,7 @@ export const DocumentPage = ({ id }: DocumentPageProps) => {
   };
 
   const removeTag = (tag: string) => {
-    setValue(
-      "tags",
-      tags.filter((t) => t !== tag),
-    );
+    setValue("tags", tags.filter((t) => t !== tag));
   };
 
   const handleTagKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -111,10 +150,59 @@ export const DocumentPage = ({ id }: DocumentPageProps) => {
     if (dropped) setValue("file", dropped);
   };
 
-  const onSubmit = async (data: DocumentFormValues) => {
-    console.log(data);
-    router.push("/knowledge-base");
+  const onSubmit = (data: DocumentFormValues) => {
+    if (isNew) {
+      if (!data.file) {
+        toast.error("Please upload a file");
+        return;
+      }
+      uploadDocument({
+        file:          data.file,
+        document_name: data.name,
+        description:   data.description,
+        category_id:   Number(data.category_id),
+        status:        data.status,
+        tags:          data.tags ?? [],
+      });
+    } else {
+      updateDocument({
+        document_id:   Number(id),
+        file:          data.file,
+        document_name: data.name,
+        description:   data.description,
+        category_id:   Number(data.category_id),
+        status:        data.status,
+        tags:          data.tags ?? [],
+      });
+    }
   };
+
+  if (!isNew && isLoadingDoc) {
+    return (
+      <div className="flex flex-col gap-6">
+        <Skeleton className="h-5 w-56" />
+        <Skeleton className="h-10 w-96" />
+        <Card className="p-8">
+          <div className="grid grid-cols-[3fr_2fr] gap-8">
+            <div className="flex flex-col gap-5">
+              <Skeleton className="h-6 w-40" />
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-20 w-full" />
+              <div className="grid grid-cols-2 gap-4">
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+              <Skeleton className="h-10 w-full" />
+            </div>
+            <div className="flex flex-col gap-5">
+              <Skeleton className="h-6 w-32" />
+              <Skeleton className="flex-1 rounded-xl" />
+            </div>
+          </div>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -137,27 +225,17 @@ export const DocumentPage = ({ id }: DocumentPageProps) => {
       <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-5">
         <Card className="p-8">
           <div className="grid grid-cols-[3fr_2fr] gap-8">
-            {/* Left — document fields */}
             <div className="flex flex-col gap-5">
-              <Heading as="h3" size="sm">
-                Document Details
-              </Heading>
+              <Heading as="h3" size="sm">Document Details</Heading>
 
               <div className="flex flex-col gap-1.5">
-                <Label>
-                  Document Name <span className="text-destructive">*</span>
-                </Label>
-                <Input
-                  placeholder="e.g. Enterprise AWS Cloud Migration"
-                  {...register("name")}
-                />
+                <Label>Document Name <span className="text-destructive">*</span></Label>
+                <Input placeholder="e.g. Enterprise AWS Cloud Migration" {...register("name")} />
                 <FormError message={errors.name?.message} />
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <Label>
-                  Description <span className="text-destructive">*</span>
-                </Label>
+                <Label>Description <span className="text-destructive">*</span></Label>
                 <Textarea
                   placeholder="Short summary of what this document covers..."
                   rows={3}
@@ -168,23 +246,19 @@ export const DocumentPage = ({ id }: DocumentPageProps) => {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1.5">
-                  <Label>
-                    Category <span className="text-destructive">*</span>
-                  </Label>
+                  <Label>Category <span className="text-destructive">*</span></Label>
                   <Controller
+                    key={doc?.category_id ?? "category"}
                     control={control}
-                    name="category"
+                    name="category_id"
                     render={({ field }) => (
-                      <Select
-                        value={field.value}
-                        onValueChange={field.onChange}
-                      >
+                      <Select value={field.value} onValueChange={field.onChange}>
                         <SelectTrigger>
                           <SelectValue placeholder="Select a category" />
                         </SelectTrigger>
                         <SelectContent>
-                          {SELECTABLE_CATEGORIES.map((cat) => (
-                            <SelectItem key={cat.name} value={cat.name}>
+                          {categories.map((cat) => (
+                            <SelectItem key={cat.id} value={String(cat.id)}>
                               {cat.name}
                             </SelectItem>
                           ))}
@@ -192,7 +266,7 @@ export const DocumentPage = ({ id }: DocumentPageProps) => {
                       </Select>
                     )}
                   />
-                  <FormError message={errors.category?.message} />
+                  <FormError message={errors.category_id?.message} />
                 </div>
 
                 <div className="flex flex-col gap-1.5">
@@ -201,16 +275,13 @@ export const DocumentPage = ({ id }: DocumentPageProps) => {
                     control={control}
                     name="status"
                     render={({ field }) => (
-                      <Select
-                        value={field.value}
-                        onValueChange={field.onChange}
-                      >
+                      <Select value={field.value} onValueChange={field.onChange}>
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="draft">Draft</SelectItem>
-                          <SelectItem value="verified">Verified</SelectItem>
+                          <SelectItem value={DocumentStatus.Active}>Active</SelectItem>
+                          <SelectItem value={DocumentStatus.Inactive}>Inactive</SelectItem>
                         </SelectContent>
                       </Select>
                     )}
@@ -247,29 +318,19 @@ export const DocumentPage = ({ id }: DocumentPageProps) => {
                     onChange={(e) => setTagInput(e.target.value)}
                     onKeyDown={handleTagKeyDown}
                     onBlur={() => tagInput && addTag(tagInput)}
-                    placeholder={
-                      tags.length === 0 ? "Type a tag and press Enter..." : ""
-                    }
+                    placeholder={tags.length === 0 ? "Type a tag and press Enter..." : ""}
                     className="flex-1 min-w-24 h-7 bg-transparent text-sm outline-none placeholder:text-text-subtle"
                   />
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  Press Enter or comma to add a tag.
-                </p>
+                <p className="text-xs text-muted-foreground">Press Enter or comma to add a tag.</p>
               </div>
             </div>
 
-            {/* Right — file upload */}
             <div className="flex flex-col gap-5">
-              <Heading as="h3" size="sm">
-                File Upload
-              </Heading>
+              <Heading as="h3" size="sm">File Upload</Heading>
 
               <div
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  setDragOver(true);
-                }}
+                onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
                 onDragLeave={() => setDragOver(false)}
                 onDrop={handleFileDrop}
                 onClick={() => document.getElementById("file-input")?.click()}
@@ -285,12 +346,8 @@ export const DocumentPage = ({ id }: DocumentPageProps) => {
                 </div>
                 {file ? (
                   <div className="flex flex-col items-center gap-2">
-                    <p className="text-sm font-medium text-foreground">
-                      {file.name}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {(file.size / 1024).toFixed(1)} KB
-                    </p>
+                    <p className="text-sm font-medium text-foreground">{file.name}</p>
+                    <p className="text-xs text-muted-foreground">{(file.size / 1024).toFixed(1)} KB</p>
                     <button
                       type="button"
                       onClick={(e) => {
@@ -302,15 +359,27 @@ export const DocumentPage = ({ id }: DocumentPageProps) => {
                       <X className="w-3 h-3" /> Remove file
                     </button>
                   </div>
+                ) : !isNew && doc && showCurrentFile ? (
+                  <div className="flex flex-col items-center gap-2">
+                    <p className="text-sm font-medium text-foreground">{doc.file_name}</p>
+                    <p className="text-xs text-muted-foreground">{(doc.version)} version</p>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowCurrentFile(false);
+                      }}
+                      className="inline-flex items-center gap-1 text-xs text-destructive hover:text-destructive/70 transition-colors"
+                    >
+                      <X className="w-3 h-3" /> Remove file
+                    </button>
+                  </div>
                 ) : (
                   <div className="flex flex-col items-center gap-1 text-center">
                     <p className="text-sm font-medium text-foreground">
-                      Drop your file here or{" "}
-                      <span className="text-primary">browse</span>
+                      Drop your file here or <span className="text-primary">browse</span>
                     </p>
-                    <p className="text-xs text-muted-foreground">
-                      Supports PDF, DOCX, TXT
-                    </p>
+                    <p className="text-xs text-muted-foreground">Supports PDF, DOCX, TXT</p>
                   </div>
                 )}
                 <input
@@ -330,14 +399,10 @@ export const DocumentPage = ({ id }: DocumentPageProps) => {
         </Card>
 
         <div className="flex items-center justify-end gap-3">
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={() => router.back()}
-          >
+          <Button type="button" variant="secondary" onClick={() => router.back()}>
             Cancel
           </Button>
-          <Button type="submit" disabled={isSubmitting}>
+          <Button type="submit" loading={isPending}>
             {isNew ? "Add Document" : "Save Changes"}
           </Button>
         </div>
