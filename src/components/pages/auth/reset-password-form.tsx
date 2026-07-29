@@ -85,6 +85,7 @@ const ResetPasswordForm = () => {
       authService.resetPassword({
         current_password: data.oldPassword,
         new_password: data.newPassword,
+        confirm_password: data.confirmPassword,
       }),
     onSuccess: () => {
       toast.success("Password updated successfully");
