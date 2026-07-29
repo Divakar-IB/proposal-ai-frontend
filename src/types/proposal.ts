@@ -1,4 +1,4 @@
-export type ProposalStatus = "inprogress" | "generating" | "review" | "approved" | "done" | "failed";
+export type ProposalStatus = "inprogress" | "generating" | "review" | "done" | "failed";
 export type GenerationMode = "llm_only" | "knowledge_augmented";
 export type ProposalFocus = "concise" | "standard" | "detailed" | "executive";
 export type ProposalSectionStatus = "pending" | "generating" | "done" | "error";
@@ -9,8 +9,9 @@ export interface Proposal {
   title: string;
   client_name: string;
   status: ProposalStatus;
-  generation_mode: GenerationMode;
-  page_count: number;
+  generation_mode?: GenerationMode;
+  page_count?: number;
+  sections?: unknown[];
   is_approved: boolean;
   user_id: number;
   requirement_document_ids: number[];
@@ -121,6 +122,18 @@ export interface ProposalDetailSection {
 export interface UpdateSectionsRequest {
   proposal_id: string;
   sections: Array<{ id: number; order: number }>;
+}
+
+export interface SendEmailRequest {
+  proposal_id: string;
+  template_id: number;
+  format: ExportFormat;
+  email: string;
+}
+
+export interface UpdateStatusRequest {
+  proposal_id: string;
+  status: ProposalStatus;
 }
 
 export interface ProposalDetail {

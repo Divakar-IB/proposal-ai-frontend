@@ -3,9 +3,9 @@
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { LayoutGrid, CheckCircle2, ArrowLeft, Check, Eye, X, Loader2, FileDown } from "lucide-react";
+import { LayoutGrid, CheckCircle2, ArrowLeft, Check, Eye, X, Loader2, FileDown, Mail, Send } from "lucide-react";
 import { toast } from "sonner";
-import { Button, Card } from "@/components/ui";
+import { Button, Card, Input } from "@/components/ui";
 import { StepHeader } from "@/components/pages/generate-proposals";
 import { proposalService } from "@/services";
 import { useProposalWizardStore } from "@/store";
@@ -59,6 +59,8 @@ const ExportStep = ({ proposalId }: ExportStepProps) => {
   const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null);
   const [previewTemplate, setPreviewTemplate] = useState<Template | null>(null);
   const [downloadingFormat, setDownloadingFormat] = useState<ExportFormat | null>(null);
+  const [emailAddress, setEmailAddress] = useState<string>("");
+  const [emailFormat, setEmailFormat] = useState<ExportFormat>("pdf");
 
   // Measure the grid to compute thumbnail scale dynamically
   const gridRef = useRef<HTMLDivElement>(null);
@@ -85,11 +87,6 @@ const ExportStep = ({ proposalId }: ExportStepProps) => {
     staleTime: Infinity,
   });
 
-  const { data: proposal } = useQuery({
-    queryKey: ["proposals", proposalId, "detail"],
-    queryFn: () => proposalService.getDetail(proposalId),
-    enabled: !!proposalId,
-  });
 
   const effectiveTemplateId = selectedTemplateId ?? templates[0]?.id ?? null;
 
@@ -120,11 +117,52 @@ const ExportStep = ({ proposalId }: ExportStepProps) => {
     doExport(format);
   };
 
-  const handleDone = () => {
-    markStepComplete(5);
-    reset();
-    router.push("/all-proposals");
+  const { mutate: doSendEmail, isPending: isSendingEmail } = useMutation({
+    mutationFn: () => {
+      if (!effectiveTemplateId) throw new Error("no_template");
+      return proposalService.sendEmail({
+        proposal_id: proposalId,
+        template_id: effectiveTemplateId,
+        format: emailFormat,
+        email: emailAddress,
+      });
+    },
+    onSuccess: () => {
+      toast.success(`Proposal sent to ${emailAddress}`);
+      setEmailAddress("");
+    },
+    onError: () => {
+      toast.error("Failed to send email. Please try again.");
+    },
+  });
+
+  const handleSendEmail = () => {
+    const trimmed = emailAddress.trim();
+    if (!trimmed) {
+      toast.error("Please enter an email address.");
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+      toast.error("Please enter a valid email address.");
+      return;
+    }
+    if (!effectiveTemplateId) {
+      toast.error("Please select a template first.");
+      return;
+    }
+    doSendEmail();
   };
+
+  const { mutate: handleDone, isPending: isFinishing } = useMutation({
+    mutationFn: () =>
+      proposalService.updateStatus({ proposal_id: proposalId, status: "done" }),
+    onSuccess: () => {
+      markStepComplete(5);
+      reset();
+      router.push("/all-proposals");
+    },
+    onError: () => toast.error("Failed to proceed. Please try again."),
+  });
 
   return (
     <>
@@ -137,15 +175,13 @@ const ExportStep = ({ proposalId }: ExportStepProps) => {
         />
 
         {/* Success banner */}
-        {proposal && (
-          <div className="flex items-center gap-2.5 rounded-xl bg-green-500/8 border border-green-500/20 px-4 py-3">
+        <div className="flex items-center gap-2.5 rounded-xl bg-green-500/8 border border-green-500/20 px-4 py-3">
             <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" />
             <p className="text-sm text-green-700 dark:text-green-400">
               <span className="font-semibold">Proposal ready</span>
-              {" — "}{proposal.client_name} · {proposal.title}
+              {" — "}Pick a template and download below
             </p>
           </div>
-        )}
 
         {/* Template picker */}
         <div className="flex flex-col gap-3">
@@ -251,6 +287,61 @@ const ExportStep = ({ proposalId }: ExportStepProps) => {
           </div>
         </div>
 
+        {/* Send via email */}
+        <div className="flex flex-col gap-3">
+          <p className="text-sm font-semibold text-foreground">Send via email</p>
+          <div className="flex flex-col gap-3 rounded-xl border border-border px-5 py-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                <Mail className="w-5 h-5 text-primary" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-foreground">Email proposal</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Send the document directly to a recipient</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Input
+                type="email"
+                placeholder="recipient@example.com"
+                value={emailAddress}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmailAddress(e.target.value)}
+                className="flex-1"
+                onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+                  if (e.key === "Enter") handleSendEmail();
+                }}
+              />
+              <div className="flex items-center rounded-lg border border-border overflow-hidden shrink-0">
+                {(["pdf", "docx"] as ExportFormat[]).map((fmt) => (
+                  <button
+                    key={fmt}
+                    type="button"
+                    onClick={() => setEmailFormat(fmt)}
+                    className={cn(
+                      "px-3 h-9 text-xs font-medium transition-colors",
+                      emailFormat === fmt
+                        ? "bg-primary text-primary-foreground"
+                        : "text-muted-foreground hover:bg-muted"
+                    )}
+                  >
+                    {fmt.toUpperCase()}
+                  </button>
+                ))}
+              </div>
+              <Button
+                size="sm"
+                className="shrink-0"
+                loading={isSendingEmail}
+                disabled={!effectiveTemplateId || isSendingEmail}
+                onClick={handleSendEmail}
+              >
+                <Send className="w-3.5 h-3.5" />
+                Send
+              </Button>
+            </div>
+          </div>
+        </div>
+
         {/* Footer */}
         <div className="flex items-center justify-between pt-1">
           <Button
@@ -261,7 +352,7 @@ const ExportStep = ({ proposalId }: ExportStepProps) => {
             <ArrowLeft className="w-4 h-4" />
             Back
           </Button>
-          <Button type="button" onClick={handleDone}>
+          <Button type="button" loading={isFinishing} onClick={() => handleDone()}>
             <Check className="w-4 h-4" />
             Done — back to proposals
           </Button>

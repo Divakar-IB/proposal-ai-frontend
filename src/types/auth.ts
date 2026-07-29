@@ -5,18 +5,21 @@ export enum UserRole {
 
 export interface UserProfile {
   id: number;
-  name: string;
+  full_name: string | null;
   email: string;
+  designation: string | null;
   role: UserRole;
 }
 
 export interface UpdateProfileRequest {
-  name: string;
+  full_name: string;
+  designation: string;
 }
 
 export interface ResetPasswordRequest {
   current_password: string;
   new_password: string;
+  confirm_password: string;
 }
 
 export interface ForgotPasswordRequest {

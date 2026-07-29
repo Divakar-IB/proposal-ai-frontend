@@ -34,12 +34,12 @@ class AuthService {
   }
 
   async getProfile(): Promise<UserProfile> {
-    const { data } = await api.get<UserProfile>("/auth/profile");
+    const { data } = await api.get<UserProfile>("/profile");
     return data;
   }
 
   async updateProfile(payload: UpdateProfileRequest): Promise<UserProfile> {
-    const { data } = await api.put<UserProfile>("/auth/profile", payload);
+    const { data } = await api.put<UserProfile>("/profile", payload);
     return data;
   }
 

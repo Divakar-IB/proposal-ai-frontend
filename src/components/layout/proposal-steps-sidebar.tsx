@@ -30,7 +30,11 @@ const getActiveStep = (pathname: string): number => {
 };
 
 const getStepHref = (step: Step, proposalId: string | null): string => {
-  if (step.number === 1) return "/all-proposals/generate-proposals/new";
+  if (step.number === 1) {
+    return proposalId
+      ? `/all-proposals/generate-proposals/${proposalId}/upload`
+      : "/all-proposals/generate-proposals/new";
+  }
   if (!proposalId) return "#";
   return `/all-proposals/generate-proposals/${proposalId}/${step.segment}`;
 };

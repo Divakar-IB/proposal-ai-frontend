@@ -14,7 +14,6 @@ import {
   Trash2,
   Download,
   ClipboardList,
-  Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -25,7 +24,7 @@ import { proposalService } from "@/services";
 import { useProposalWizardStore } from "@/store";
 import type { Proposal, ProposalStatus } from "@/types";
 
-const STATUS_TABS = ["All", "In Progress", "Generating", "In Review", "Approved", "Done", "Failed"] as const;
+const STATUS_TABS = ["All", "In Progress", "Generating", "In Review", "Done", "Failed"] as const;
 type StatusTab = (typeof STATUS_TABS)[number];
 
 const TAB_TO_STATUS: Record<StatusTab, ProposalStatus | undefined> = {
@@ -33,7 +32,6 @@ const TAB_TO_STATUS: Record<StatusTab, ProposalStatus | undefined> = {
   "In Progress": "inprogress",
   "Generating": "generating",
   "In Review": "review",
-  "Approved": "approved",
   "Done": "done",
   "Failed": "failed",
 };
@@ -42,7 +40,6 @@ const STATUS_LABEL: Record<ProposalStatus, string> = {
   inprogress: "In Progress",
   generating: "Generating",
   review: "In Review",
-  approved: "Approved",
   done: "Done",
   failed: "Failed",
 };
@@ -51,9 +48,13 @@ const STATUS_STYLE: Record<ProposalStatus, string> = {
   inprogress: "bg-orange-50 text-orange-600 dark:bg-orange-500/10 dark:text-orange-400",
   generating: "bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400",
   review: "bg-violet-50 text-violet-600 dark:bg-violet-500/10 dark:text-violet-400",
-  approved: "bg-teal-50 text-teal-600 dark:bg-teal-500/10 dark:text-teal-400",
   done: "bg-green-50 text-green-600 dark:bg-green-500/10 dark:text-green-400",
   failed: "bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400",
+};
+
+const MODE_LABEL: Record<string, string> = {
+  llm_only: "AI Only",
+  knowledge_augmented: "AI + KB",
 };
 
 const formatDate = (iso: string) =>
@@ -61,43 +62,37 @@ const formatDate = (iso: string) =>
 
 const PAGE_SIZE = 10;
 
-const STEP_SEGMENT: Record<string, string> = {
-  upload: "configure",
-  generation: "generate",
+const STATUS_TO_SEGMENT: Record<ProposalStatus, string> = {
+  inprogress: "configure",
+  generating: "generate",
   review: "review",
-  export: "export",
+  done: "export",
+  failed: "generate",
 };
 
-const STEP_COMPLETE_MAP: Record<string, number[]> = {
-  upload: [1],
-  generation: [1, 2],
+const STATUS_TO_COMPLETED_STEPS: Record<ProposalStatus, number[]> = {
+  inprogress: [1],
+  generating: [1, 2],
   review: [1, 2, 3],
-  export: [1, 2, 3, 4],
+  done: [1, 2, 3, 4],
+  failed: [1, 2],
 };
 
 export const AllProposalsPage = () => {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { setProposalId, markStepComplete } = useProposalWizardStore();
+  const { setProposalId, markStepComplete, reset } = useProposalWizardStore();
 
   const [activeTab, setActiveTab] = useState<StatusTab>("All");
   const [search, setSearch] = useState("");
   const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: PAGE_SIZE });
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [viewingId, setViewingId] = useState<number | null>(null);
-
-  const handleView = async (proposal: Proposal) => {
-    setViewingId(proposal.id);
-    try {
-      const state = await proposalService.getProposalState(String(proposal.id));
-      setProposalId(String(proposal.id));
-      (STEP_COMPLETE_MAP[state.current_step] ?? []).forEach((step) => markStepComplete(step));
-      const segment = STEP_SEGMENT[state.current_step] ?? "review";
-      router.push(`/all-proposals/generate-proposals/${proposal.id}/${segment}`);
-    } catch {
-      toast.error("Failed to load proposal.");
-      setViewingId(null);
-    }
+  const handleView = (proposal: Proposal) => {
+    reset();
+    setProposalId(String(proposal.id));
+    (STATUS_TO_COMPLETED_STEPS[proposal.status] ?? []).forEach((step) => markStepComplete(step));
+    const segment = STATUS_TO_SEGMENT[proposal.status] ?? "review";
+    router.push(`/all-proposals/generate-proposals/${proposal.id}/${segment}`);
   };
 
   const handleTabChange = (tab: StatusTab) => {
@@ -188,6 +183,36 @@ export const AllProposalsPage = () => {
       },
     },
     {
+      id: "generation_mode",
+      header: "Mode",
+      cell: ({ row }) => {
+        const mode = row.original.generation_mode;
+        return (
+          <span className="text-xs text-muted-foreground">
+            {mode ? (MODE_LABEL[mode] ?? mode) : "—"}
+          </span>
+        );
+      },
+    },
+    {
+      id: "page_count",
+      header: "Pages",
+      cell: ({ row }) => (
+        <span className="text-xs text-muted-foreground">
+          {row.original.page_count ?? "—"}
+        </span>
+      ),
+    },
+    {
+      id: "section_count",
+      header: "Sections",
+      cell: ({ row }) => (
+        <span className="text-xs text-muted-foreground">
+          {row.original.sections?.length ?? "—"}
+        </span>
+      ),
+    },
+    {
       accessorKey: "created_at",
       header: "Created",
       enableSorting: true,
@@ -202,9 +227,6 @@ export const AllProposalsPage = () => {
       cell: ({ row }) => {
         const proposal = row.original;
         const base = `/all-proposals/generate-proposals/${proposal.id}`;
-        if (viewingId === proposal.id) {
-          return <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />;
-        }
         return (
           <ActionMenu
             items={[
@@ -267,7 +289,7 @@ export const AllProposalsPage = () => {
                 />
               </div>
 
-              <Button size="default" onClick={() => router.push("/all-proposals/generate-proposals/new")}>
+              <Button size="default" onClick={() => { reset(); router.push("/all-proposals/generate-proposals/new"); }}>
                 <Plus className="w-4 h-4" />
                 New Proposal
               </Button>

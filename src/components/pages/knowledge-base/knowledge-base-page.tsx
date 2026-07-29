@@ -2,12 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  Search, Eye, Trash2, Plus, Edit,
-  Files, Shield, Code2, GitBranch, Lock, History, FileText,
-  type LucideIcon,
-} from "lucide-react";
-import Link from "next/link";
+import { Search, Eye, Trash2, Plus, Edit, FolderOpen } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useDebounce } from "@/hooks";
@@ -20,6 +15,11 @@ import {
   ConfirmDialog,
   DataTable,
   Input,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   Tabs,
   TabsList,
   TabsTrigger,
@@ -29,20 +29,6 @@ import { PageHeader, ActionMenu } from "@/components/shared";
 import { kbService } from "@/services";
 import { DocumentStatus } from "@/types";
 import type { KbCategory, KbDocument } from "@/types";
-
-interface IconConfig { icon: LucideIcon; iconColor: string; iconBg: string; }
-
-const ICON_MAP: Record<string, IconConfig> = {
-  "Company Capabilities":    { icon: Shield,    iconColor: "text-blue-500",   iconBg: "bg-blue-50"   },
-  "Technical Methodologies": { icon: Code2,     iconColor: "text-green-500",  iconBg: "bg-green-50"  },
-  "Development Practices":   { icon: GitBranch, iconColor: "text-indigo-500", iconBg: "bg-indigo-50" },
-  "Security & Compliance":   { icon: Lock,      iconColor: "text-amber-500",  iconBg: "bg-amber-50"  },
-  "Past Solutions":          { icon: History,   iconColor: "text-violet-500", iconBg: "bg-violet-50" },
-  "Technical Docs":          { icon: FileText,  iconColor: "text-teal-500",   iconBg: "bg-teal-50"   },
-};
-
-const getIconConfig = (name: string): IconConfig =>
-  ICON_MAP[name] ?? { icon: Files, iconColor: "text-primary", iconBg: "bg-primary/10" };
 
 const STATUS_CONFIG: Record<string, { color: string; dot: string; label: string }> = {
   active:   { color: "text-green-600", dot: "bg-green-500", label: "Active"   },
@@ -96,11 +82,9 @@ export const KnowledgeBasePage = () => {
     }),
   });
 
-  const totalCount = apiCategories.reduce((sum: number, c: KbCategory) => sum + c.document_count, 0);
-
-  const categories = [
-    { id: null as number | null, name: "All Documents", icon: Files, iconColor: "text-primary", iconBg: "bg-primary/10", document_count: totalCount },
-    ...apiCategories.map((cat: KbCategory) => ({ ...cat, ...getIconConfig(cat.name) })),
+  const categoryOptions = [
+    { id: null as number | null, name: "All Categories" },
+    ...apiCategories.map((cat: KbCategory) => ({ id: cat.id, name: cat.name })),
   ];
 
   const columns: ColumnDef<KbDocument, string>[] = [
@@ -116,18 +100,18 @@ export const KnowledgeBasePage = () => {
       ),
     },
     {
-      accessorKey: "description",
-      header: "Description",
-      cell: ({ getValue }) => (
-        <span className="text-xs text-muted-foreground line-clamp-2 max-w-xs">{getValue() || "—"}</span>
-      ),
-    },
-    {
       accessorKey: "category_name",
       header: "Category",
       enableSorting: true,
       cell: ({ getValue }) => (
         <span className="text-sm text-muted-foreground whitespace-nowrap">{getValue()}</span>
+      ),
+    },
+    {
+      accessorKey: "description",
+      header: "Description",
+      cell: ({ getValue }) => (
+        <span className="text-xs text-muted-foreground line-clamp-2 max-w-xs">{getValue() || "—"}</span>
       ),
     },
     {
@@ -203,76 +187,15 @@ export const KnowledgeBasePage = () => {
   return (
     <div className="flex flex-col relative">
       <div className="flex flex-col gap-6">
-        <PageHeader
-          title="Knowledge Base"
-          description="Manage your internal documents used for AI-generated proposals. Upload, categorise, and track indexing status."
-        />
-
-        <div className="flex flex-wrap gap-3">
-          {categories.map((cat) => {
-            const Icon = cat.icon;
-            const isActive = activeCategoryId === cat.id;
-            return (
-              <button
-                key={cat.name}
-                onClick={() => { setActiveCategoryId(cat.id); resetPage(); }}
-                className={cn(
-                  "flex items-center gap-3 px-4 py-3.5 rounded-xl border transition-all shrink-0 text-left",
-                  isActive
-                    ? "bg-gradient-brand border-transparent shadow-md"
-                    : "card-surface hover:shadow-sm hover:border-primary/30",
-                )}
-              >
-                <div
-                  className={cn(
-                    "w-9 h-9 rounded-lg flex items-center justify-center shrink-0",
-                    isActive ? "bg-white/15" : cat.iconBg,
-                  )}
-                >
-                  <Icon
-                    className={cn(
-                      "w-4 h-4",
-                      isActive ? "text-white" : cat.iconColor,
-                    )}
-                  />
-                </div>
-                <div className="flex flex-col leading-none gap-1.5">
-                  <span
-                    className={cn(
-                      "text-sm font-semibold",
-                      isActive ? "text-white" : "text-foreground",
-                    )}
-                  >
-                    {cat.name}
-                  </span>
-                  <span
-                    className={cn(
-                      "text-xs",
-                      isActive ? "text-white/70" : "text-muted-foreground",
-                    )}
-                  >
-                    {cat.document_count} {cat.document_count === 1 ? "document" : "documents"}
-                  </span>
-                </div>
-              </button>
-            );
-          })}
-          <Link
-            href="/kb-categories"
-            className="flex items-center gap-3 px-4 py-3.5 rounded-xl border border-dashed transition-all shrink-0 text-left border-primary/40 bg-primary/5 group"
-          >
-            <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 bg-muted group-hover:bg-primary/10 transition-colors">
-              <Plus className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
-            </div>
-            <div className="flex flex-col leading-none gap-1.5">
-              <span className="text-sm font-semibold text-muted-foreground group-hover:text-primary transition-colors">
-                New Category
-              </span>
-              <span className="text-xs text-muted-foreground/70">
-                Manage categories
-              </span>
-            </div>
-          </Link>
+        <div className="flex items-start justify-between">
+          <PageHeader
+            title="Knowledge Base"
+            description="Manage your internal documents used for AI-generated proposals. Upload, categorise, and track indexing status."
+          />
+          <Button variant="secondary" size="default" onClick={() => router.push("/kb-categories")}>
+            <FolderOpen className="w-4 h-4" />
+            Categories
+          </Button>
         </div>
 
         <Card className="overflow-hidden">
@@ -290,6 +213,21 @@ export const KnowledgeBasePage = () => {
               </TabsList>
             </Tabs>
             <div className="flex items-center gap-3">
+              <Select
+                value={activeCategoryId === null ? "all" : String(activeCategoryId)}
+                onValueChange={(v) => { setActiveCategoryId(v === "all" ? null : Number(v)); resetPage(); }}
+              >
+                <SelectTrigger className="w-44">
+                  <SelectValue placeholder="All Categories" />
+                </SelectTrigger>
+                <SelectContent className="max-h-80">
+                  {categoryOptions.map((cat) => (
+                    <SelectItem key={cat.id ?? "all"} value={cat.id === null ? "all" : String(cat.id)} className="cursor-pointer">
+                      {cat.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input

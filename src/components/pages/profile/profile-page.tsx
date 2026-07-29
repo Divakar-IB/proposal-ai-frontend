@@ -9,21 +9,20 @@ import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button, Card, Input, Label, FormError, Heading, Skeleton } from "@/components/ui";
 import { authService } from "@/services";
-import type { ApiError } from "@/lib/axios";
+import type { AxiosError } from "axios";
+
+type ApiDetailError = AxiosError<{ detail?: string }>;
 
 const profileSchema = z.object({
-  name: z.string().min(1, "Name is required"),
+  full_name: z.string().min(1, "Name is required"),
+  designation: z.string().min(1, "Designation is required"),
 });
 type ProfileValues = z.infer<typeof profileSchema>;
 
 const passwordSchema = z
   .object({
     current_password: z.string().min(1, "Current password is required"),
-    new_password: z
-      .string()
-      .min(8, "Password must be at least 8 characters")
-      .regex(/[A-Z]/, "Must contain at least one uppercase letter")
-      .regex(/[0-9]/, "Must contain at least one number"),
+    new_password: z.string().min(8, "Password must be at least 8 characters"),
     confirm_password: z.string().min(1, "Please confirm your password"),
   })
   .refine((d) => d.new_password === d.confirm_password, {
@@ -32,13 +31,10 @@ const passwordSchema = z
   });
 type PasswordValues = z.infer<typeof passwordSchema>;
 
-const getInitials = (name: string) =>
+const getInitials = (name: string | null) =>
   name
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2);
+    ? name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)
+    : "?";
 
 interface PasswordInputProps {
   id: string;
@@ -89,10 +85,10 @@ export const ProfilePage = () => {
   const {
     register: regProfile,
     handleSubmit: submitProfile,
-    formState: { errors: pErr },
+    formState: { errors: pErr, isDirty },
   } = useForm<ProfileValues>({
     resolver: zodResolver(profileSchema),
-    values: profile ? { name: profile.name } : undefined,
+    values: profile ? { full_name: profile.full_name ?? "", designation: profile.designation ?? "" } : undefined,
   });
 
   const {
@@ -105,12 +101,12 @@ export const ProfilePage = () => {
   });
 
   const { mutate: saveProfile, isPending: isSaving } = useMutation({
-    mutationFn: (d: ProfileValues) => authService.updateProfile({ name: d.name }),
+    mutationFn: (d: ProfileValues) => authService.updateProfile({ full_name: d.full_name, designation: d.designation }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["profile"] });
       toast.success("Profile updated");
     },
-    onError: (err: ApiError) => toast.error(err.message ?? "Failed to update profile"),
+    onError: (err: ApiDetailError) => toast.error(err.response?.data?.detail ?? "Failed to update profile"),
   });
 
   const { mutate: changePassword, isPending: isChanging } = useMutation({
@@ -118,12 +114,13 @@ export const ProfilePage = () => {
       authService.resetPassword({
         current_password: d.current_password,
         new_password: d.new_password,
+        confirm_password: d.confirm_password,
       }),
     onSuccess: () => {
       resetPw();
       toast.success("Password updated successfully");
     },
-    onError: (err: ApiError) => toast.error(err.message ?? "Failed to update password"),
+    onError: (err: ApiDetailError) => toast.error(err.response?.data?.detail ?? "Failed to update password"),
   });
 
   return (
@@ -152,12 +149,15 @@ export const ProfilePage = () => {
               <>
                 <div className="w-14 h-14 rounded-full bg-gradient-brand flex items-center justify-center shrink-0 shadow-md">
                   <span className="text-white text-lg font-semibold">
-                    {profile ? getInitials(profile.name) : "?"}
+                    {getInitials(profile?.full_name ?? null)}
                   </span>
                 </div>
                 <div>
-                  <p className="font-semibold text-foreground">{profile?.name}</p>
+                  <p className="font-semibold text-foreground">{profile?.full_name}</p>
                   <p className="text-muted-foreground text-sm">{profile?.email}</p>
+                  {profile?.designation && (
+                    <p className="text-xs text-muted-foreground">{profile.designation}</p>
+                  )}
                   {profile?.role && (
                     <span className="text-xs text-primary font-medium">
                       {ROLE_LABEL[profile.role] ?? profile.role}
@@ -177,13 +177,23 @@ export const ProfilePage = () => {
             className="flex flex-col gap-4"
           >
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="name">Full name</Label>
+              <Label htmlFor="full_name">Full name</Label>
               {isLoading ? (
                 <Skeleton className="h-9 w-full" />
               ) : (
-                <Input id="name" placeholder="Your full name" {...regProfile("name")} />
+                <Input id="full_name" placeholder="Your full name" {...regProfile("full_name")} />
               )}
-              <FormError message={pErr.name?.message} />
+              <FormError message={pErr.full_name?.message} />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="designation">Designation</Label>
+              {isLoading ? (
+                <Skeleton className="h-9 w-full" />
+              ) : (
+                <Input id="designation" placeholder="e.g. Senior Sales Manager" {...regProfile("designation")} />
+              )}
+              <FormError message={pErr.designation?.message} />
             </div>
 
             <div className="flex flex-col gap-1.5">
@@ -194,14 +204,14 @@ export const ProfilePage = () => {
                 <Input
                   id="email"
                   value={profile?.email ?? ""}
-                  disabled
-                  className="opacity-60 cursor-not-allowed"
+                  readOnly
+                  className="cursor-not-allowed bg-muted/50"
                 />
               )}
             </div>
 
             <div className="flex justify-end">
-              <Button type="submit" loading={isSaving} disabled={isLoading}>
+              <Button type="submit" loading={isSaving} disabled={isLoading || !isDirty}>
                 Save changes
               </Button>
             </div>

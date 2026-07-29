@@ -1,6 +1,6 @@
 export { UserRole } from "./auth";
 export type { LoginRequest, LoginResponse, ResetPasswordRequest, ForgotPasswordRequest, VerifyOtpRequest, VerifyOtpResponse, NewPasswordRequest, UserProfile, UpdateProfileRequest } from "./auth";
-export type { OrgProfile, UpdateOrgProfileRequest, TeamMember, InviteTeamMemberRequest } from "./org";
+export type { OrgProfile, UpdateOrgProfileRequest, TeamMember, TeamMembersResponse, InviteTeamMemberRequest } from "./org";
 export { DocumentStatus } from "./kb";
 export type { KbCategory, KbDocument, PaginatedResponse, UploadDocumentRequest, UpdateDocumentRequest, CreateCategoryRequest, UpdateCategoryRequest } from "./kb";
 export type {
@@ -26,4 +26,6 @@ export type {
   ProposalState,
   Template,
   UpdateSectionsRequest,
+  SendEmailRequest,
+  UpdateStatusRequest,
 } from "./proposal";

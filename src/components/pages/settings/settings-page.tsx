@@ -13,7 +13,9 @@ import { Button, Card, Input, Label, FormError, Heading, Skeleton } from "@/comp
 import { orgService } from "@/services";
 import { useAuth } from "@/providers";
 import { UserRole } from "@/types";
-import type { ApiError } from "@/lib/axios";
+import type { AxiosError } from "axios";
+
+type ApiDetailError = AxiosError<{ detail?: string }>;
 
 const schema = z.object({
   name: z.string().min(1, "Organisation name is required"),
@@ -44,12 +46,12 @@ export const SettingsPage = () => {
   const {
     register,
     handleSubmit,
-    formState: { errors },
+    formState: { errors, isDirty },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
     values: org
       ? {
-          name: org.name,
+          name: org.organization_name,
           contact_email: org.contact_email ?? "",
           default_signee_name: org.default_signee_name ?? "",
           default_signee_designation: org.default_signee_designation ?? "",
@@ -60,7 +62,7 @@ export const SettingsPage = () => {
   const { mutate: saveProfile, isPending: isSaving } = useMutation({
     mutationFn: (d: FormValues) =>
       orgService.updateProfile({
-        name: d.name,
+        organization_name: d.name,
         contact_email: d.contact_email || undefined,
         default_signee_name: d.default_signee_name || undefined,
         default_signee_designation: d.default_signee_designation || undefined,
@@ -69,7 +71,7 @@ export const SettingsPage = () => {
       queryClient.invalidateQueries({ queryKey: ["org-profile"] });
       toast.success("Organisation settings saved");
     },
-    onError: (err: ApiError) => toast.error(err.message ?? "Failed to save settings"),
+    onError: (err: ApiDetailError) => toast.error(err.response?.data?.detail ??"Failed to save settings"),
   });
 
   const { mutate: uploadLogo, isPending: isUploadingLogo } = useMutation({
@@ -80,7 +82,7 @@ export const SettingsPage = () => {
       setLogoPreview(null);
       toast.success("Logo updated");
     },
-    onError: (err: ApiError) => toast.error(err.message ?? "Failed to upload logo"),
+    onError: (err: ApiDetailError) => toast.error(err.response?.data?.detail ??"Failed to upload logo"),
   });
 
   const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -183,7 +185,7 @@ export const SettingsPage = () => {
               </div>
 
               <div className="flex justify-end">
-                <Button type="submit" loading={isSaving} disabled={isLoading}>
+                <Button type="submit" loading={isSaving} disabled={isLoading || !isDirty}>
                   Save changes
                 </Button>
               </div>
