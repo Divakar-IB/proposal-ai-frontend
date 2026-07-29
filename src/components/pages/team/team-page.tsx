@@ -30,7 +30,9 @@ import { orgService } from "@/services";
 import { useAuth } from "@/providers";
 import { UserRole } from "@/types";
 import type { TeamMember } from "@/types";
-import type { ApiError } from "@/lib/axios";
+import type { AxiosError } from "axios";
+
+type ApiDetailError = AxiosError<{ detail?: string }>;
 
 const inviteSchema = z.object({
   email: z.string().email("Enter a valid email"),
@@ -45,13 +47,10 @@ const formatDate = (iso: string) =>
     year: "numeric",
   });
 
-const getInitials = (name: string) =>
+const getInitials = (name: string | null) =>
   name
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2);
+    ? name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)
+    : "?";
 
 interface MemberRowProps {
   member: TeamMember;
@@ -150,11 +149,12 @@ export const TeamPage = () => {
     if (role && role !== UserRole.OrgAdmin) router.replace("/all-proposals");
   }, [role, router]);
 
-  const { data: members = [], isLoading } = useQuery({
+  const { data: membersResponse, isLoading } = useQuery({
     queryKey: ["team-members"],
     queryFn: () => orgService.getTeamMembers(),
     enabled: role === UserRole.OrgAdmin,
   });
+  const members = membersResponse?.data ?? [];
 
   const {
     register,
@@ -178,7 +178,7 @@ export const TeamPage = () => {
       setShowInvite(false);
       toast.success("Invitation sent");
     },
-    onError: (err: ApiError) => toast.error(err.message ?? "Failed to send invitation"),
+    onError: (err: ApiDetailError) => toast.error(err.response?.data?.detail ??"Failed to send invitation"),
   });
 
   const { mutate: updateRole, isPending: isUpdatingRole } = useMutation({
@@ -188,7 +188,7 @@ export const TeamPage = () => {
       queryClient.invalidateQueries({ queryKey: ["team-members"] });
       toast.success("Role updated");
     },
-    onError: (err: ApiError) => toast.error(err.message ?? "Failed to update role"),
+    onError: (err: ApiDetailError) => toast.error(err.response?.data?.detail ??"Failed to update role"),
   });
 
   const { mutate: removeMember, isPending: isRemoving } = useMutation({
@@ -198,7 +198,7 @@ export const TeamPage = () => {
       setRemoveTarget(null);
       toast.success("Member removed");
     },
-    onError: (err: ApiError) => toast.error(err.message ?? "Failed to remove member"),
+    onError: (err: ApiDetailError) => toast.error(err.response?.data?.detail ??"Failed to remove member"),
   });
 
   if (!role || role !== UserRole.OrgAdmin) {

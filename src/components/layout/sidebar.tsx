@@ -110,9 +110,11 @@ const Sidebar = () => {
                   Workspace
                 </p>
               )}
-              {visibleNavItems.map(({ href, label, icon: Icon }) => {
+              {visibleNavItems.map(({ href, label, icon: Icon, activePaths }) => {
                 const active =
-                  pathname === href || pathname.startsWith(href + "/");
+                  pathname === href ||
+                  pathname.startsWith(href + "/") ||
+                  (activePaths?.some((p) => pathname === p || pathname.startsWith(p + "/")) ?? false);
                 return (
                   <Link
                     key={href}

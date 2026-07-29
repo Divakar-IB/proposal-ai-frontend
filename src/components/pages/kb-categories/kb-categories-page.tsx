@@ -13,7 +13,7 @@ import {
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Button, Card, FormError, Heading, Input } from "@/components/ui";
-import { PageHeader, ActionMenu } from "@/components/shared";
+import { PageHeader, ActionMenu, Breadcrumb } from "@/components/shared";
 import { kbService } from "@/services";
 import type { KbCategory, CreateCategoryRequest, UpdateCategoryRequest } from "@/types";
 
@@ -113,6 +113,7 @@ export const KbCategoriesPage = () => {
 
   return (
     <div className="flex flex-col gap-6">
+      <Breadcrumb items={[{ label: "Knowledge Base", href: "/knowledge-base" }, { label: "Document Categories" }]} />
       <div className="flex items-start justify-between">
         <PageHeader
           title="Document Categories"

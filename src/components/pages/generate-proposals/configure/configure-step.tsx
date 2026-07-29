@@ -77,7 +77,9 @@ const ConfigureStep = ({ proposalId }: ConfigureStepProps) => {
 
   const handleGenerate = () => {
     markStepComplete(2);
-    router.push(`/all-proposals/generate-proposals/${proposalId}/generate`);
+    router.push(
+      `/all-proposals/generate-proposals/${proposalId}/generate?mode=${mode}&pages=${pageCount}`
+    );
   };
 
   if (isLoading) {
@@ -198,7 +200,7 @@ const ConfigureStep = ({ proposalId }: ConfigureStepProps) => {
         <Button
           variant="outline"
           type="button"
-          onClick={() => router.push(`/all-proposals/generate-proposals/new`)}
+          onClick={() => router.push(`/all-proposals/generate-proposals/${proposalId}/upload`)}
         >
           <ArrowLeft className="w-4 h-4" />
           Back

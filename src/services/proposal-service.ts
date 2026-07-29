@@ -4,18 +4,16 @@ import { downloadBlob } from "@/lib/download";
 import type {
   Proposal,
   ProposalListParams,
-  ProposalSection,
   ProposalDetail,
   ProposalState,
   Template,
-  CapabilityTag,
   UploadRequirementDocumentRequest,
   UploadRequirementDocumentResponse,
-  TagCapabilitiesRequest,
   GenerateProposalRequest,
-  RegenerateSectionRequest,
   ExportProposalRequest,
   UpdateSectionsRequest,
+  SendEmailRequest,
+  UpdateStatusRequest,
 } from "@/types";
 import type { PaginatedResponse } from "@/types";
 
@@ -43,11 +41,6 @@ class ProposalService {
     return data;
   }
 
-  async getDetail(id: string): Promise<ProposalDetail> {
-    const { data } = await api.get<ProposalDetail>(`/proposals/${id}`);
-    return data;
-  }
-
   async getTemplates(): Promise<Template[]> {
     const { data } = await api.get<Template[]>("/proposals/templates");
     return data;
@@ -55,19 +48,6 @@ class ProposalService {
 
   async delete(id: string): Promise<void> {
     await api.delete(`/proposals/${id}`);
-  }
-
-  async getCapabilityTags(): Promise<CapabilityTag[]> {
-    const { data } = await api.get<CapabilityTag[]>("/proposals/capability-tags");
-    return data;
-  }
-
-  async tagCapabilities(payload: TagCapabilitiesRequest): Promise<Proposal> {
-    const { data } = await api.post<Proposal>(
-      `/proposals/${payload.proposal_id}/capabilities`,
-      payload
-    );
-    return data;
   }
 
   async getProposalState(proposalId: string): Promise<ProposalState> {
@@ -78,10 +58,6 @@ class ProposalService {
   async getProposalSections(proposalId: string): Promise<ProposalDetail> {
     const { data } = await api.get<ProposalDetail>("/proposal-sections", { params: { proposal_id: proposalId } });
     return data;
-  }
-
-  async generate(payload: GenerateProposalRequest): Promise<void> {
-    await api.post(`/proposals/generate`, payload);
   }
 
   async generateStream(
@@ -165,14 +141,6 @@ class ProposalService {
     }
   }
 
-  async regenerateSection(payload: RegenerateSectionRequest): Promise<ProposalSection> {
-    const { data } = await api.post<ProposalSection>(
-      `/proposals/sections/${payload.section_id}/regenerate`,
-      payload
-    );
-    return data;
-  }
-
   async updateProposalSections(payload: UpdateSectionsRequest): Promise<void> {
     const { proposal_id, ...body } = payload;
     await api.patch("/proposal-sections", body, { params: { proposal_id } });
@@ -184,6 +152,17 @@ class ProposalService {
       responseType: "blob",
     });
     downloadBlob(response.data, `proposal_${proposal_id}.${payload.format}`, payload.format);
+  }
+
+  async sendEmail(payload: SendEmailRequest): Promise<void> {
+    const { proposal_id, ...body } = payload;
+    await api.post(`/proposals/${proposal_id}/export/email`, body);
+  }
+
+  async updateStatus(payload: UpdateStatusRequest): Promise<void> {
+    await api.patch(`/proposals/${payload.proposal_id}/status`, null, {
+      params: { status: payload.status },
+    });
   }
 }
 

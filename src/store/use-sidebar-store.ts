@@ -1,11 +1,12 @@
 import { create } from "zustand";
-import { FileText, BookOpen, FolderOpen, Settings, Users, type LucideIcon } from "lucide-react";
+import { FileText, BookOpen, Settings, Users, type LucideIcon } from "lucide-react";
 
 export interface NavItem {
   href: string;
   label: string;
   icon: LucideIcon;
   adminOnly?: boolean;
+  activePaths?: string[];
 }
 
 interface SidebarStore {
@@ -18,8 +19,7 @@ interface SidebarStore {
 
 const NAV_ITEMS: NavItem[] = [
   { href: "/all-proposals", label: "All Proposals", icon: FileText },
-  { href: "/knowledge-base", label: "Knowledge Base", icon: BookOpen },
-  { href: "/kb-categories", label: "Document Categories", icon: FolderOpen },
+  { href: "/knowledge-base", label: "Knowledge Base", icon: BookOpen, activePaths: ["/kb-categories"] },
   { href: "/settings", label: "Settings", icon: Settings, adminOnly: true },
   { href: "/team", label: "Team", icon: Users, adminOnly: true },
 ];

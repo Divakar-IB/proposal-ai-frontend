@@ -31,9 +31,14 @@ const formatSize = (bytes: number): string => {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 };
 
-const UploadStep = () => {
+interface UploadStepProps {
+  proposalId?: string;
+}
+
+const UploadStep = ({ proposalId: propProposalId }: UploadStepProps) => {
   const router = useRouter();
-  const { proposalId, setProposalId, markStepComplete, setUploading } = useProposalWizardStore();
+  const { proposalId: storeProposalId, setProposalId, markStepComplete, setUploading } = useProposalWizardStore();
+  const proposalId = propProposalId ?? storeProposalId;
   const inputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -119,7 +124,18 @@ const UploadStep = () => {
     },
   });
 
-  const onSubmit = (values: FormValues) => submit(values);
+  const proceedFromView = () => {
+    markStepComplete(1);
+    router.push(`/all-proposals/generate-proposals/${propProposalId}/configure`);
+  };
+
+  const onSubmit = (values: FormValues) => {
+    if (propProposalId && !file) {
+      proceedFromView();
+      return;
+    }
+    submit(values);
+  };
 
   return (
     <Card className="py-8 px-8 flex flex-col gap-5 max-w-6xl mx-auto">

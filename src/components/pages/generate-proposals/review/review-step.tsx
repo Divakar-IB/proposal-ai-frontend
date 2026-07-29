@@ -138,7 +138,7 @@ const ReviewStep = ({ proposalId }: ReviewStepProps) => {
     enabled: !!proposalId,
   });
 
-  const sections = useMemo(() => {
+const sections = useMemo(() => {
     if (localSections !== null) return localSections;
     return [...(proposal?.sections ?? [])].sort((a, b) => a.order - b.order);
   }, [localSections, proposal]);

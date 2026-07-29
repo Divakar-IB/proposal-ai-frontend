@@ -1,34 +1,36 @@
 import { api } from "@/lib/axios";
 import { UserRole } from "@/types";
-import type { OrgProfile, UpdateOrgProfileRequest, TeamMember, InviteTeamMemberRequest } from "@/types";
+import type { OrgProfile, UpdateOrgProfileRequest, TeamMembersResponse, InviteTeamMemberRequest } from "@/types";
 
 class OrgService {
   async getProfile(): Promise<OrgProfile> {
-    const { data } = await api.get<OrgProfile>("/org/profile");
+    const { data } = await api.get<OrgProfile>("/organization-settings");
     return data;
   }
 
   async updateProfile(payload: UpdateOrgProfileRequest): Promise<OrgProfile> {
-    const { data } = await api.put<OrgProfile>("/org/profile", payload);
+    const { data } = await api.put<OrgProfile>("/organization-settings", payload);
     return data;
   }
 
   async uploadLogo(file: File): Promise<OrgProfile> {
     const form = new FormData();
-    form.append("logo", file);
-    const { data } = await api.post<OrgProfile>("/org/logo", form, {
+    form.append("file", file);
+    const { data } = await api.post<OrgProfile>("/organization-settings/logo", form, {
       headers: { "Content-Type": undefined },
     });
     return data;
   }
 
-  async getTeamMembers(): Promise<TeamMember[]> {
-    const { data } = await api.get<TeamMember[]>("/org/members");
+  async getTeamMembers(page = 1, limit = 50): Promise<TeamMembersResponse> {
+    const { data } = await api.get<TeamMembersResponse>("/team/members", {
+      params: { page, limit },
+    });
     return data;
   }
 
   async inviteMember(payload: InviteTeamMemberRequest): Promise<void> {
-    await api.post("/org/invite", payload);
+    await api.post("/team/invite", payload);
   }
 
   async updateMemberRole(memberId: number, role: UserRole): Promise<void> {
