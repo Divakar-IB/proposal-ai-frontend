@@ -124,13 +124,18 @@ export const KnowledgeBasePage = () => {
     {
       accessorKey: "tags",
       header: "Tags",
-      cell: ({ row }) => (
-        <div className="flex flex-wrap gap-1">
-          {row.original.tags.map((tag) => (
-            <Badge key={tag} variant="purple">{tag}</Badge>
-          ))}
-        </div>
-      ),
+      cell: ({ row }) => {
+        const tags = row.original.tags.filter((t) => t.trim() !== "");
+        return tags.length > 0 ? (
+          <div className="flex flex-wrap gap-1">
+            {tags.map((tag) => (
+              <Badge key={tag} variant="purple">{tag}</Badge>
+            ))}
+          </div>
+        ) : (
+          <span className="text-muted-foreground">—</span>
+        );
+      },
     },
     {
       accessorKey: "version",

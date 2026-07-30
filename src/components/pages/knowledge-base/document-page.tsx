@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm, Controller, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -60,7 +60,7 @@ export const DocumentPage = ({ id }: DocumentPageProps) => {
   const [dragOver, setDragOver] = useState<boolean>(false);
   const [showCurrentFile, setShowCurrentFile] = useState<boolean>(true);
 
-  const { data: categories = [] } = useQuery({
+  const { data: categories = [], isLoading: isLoadingCategories } = useQuery({
     queryKey: ["kb-categories"],
     queryFn: () => kbService.getCategories(),
   });
@@ -100,6 +100,7 @@ export const DocumentPage = ({ id }: DocumentPageProps) => {
     handleSubmit,
     control,
     setValue,
+    reset,
     formState: { errors },
   } = useForm<DocumentFormValues>({
     resolver: zodResolver(schema),
@@ -110,16 +111,21 @@ export const DocumentPage = ({ id }: DocumentPageProps) => {
       tags: [],
       status: DocumentStatus.Active,
     },
-    values: !isNew && doc ? {
-      name:        doc.document_name,
-      description: doc.description,
-      category_id: String(doc.category_id),
-      tags:        doc.tags ?? [],
-      status:      doc.availability_status === "active"
-        ? DocumentStatus.Active
-        : DocumentStatus.Inactive,
-    } : undefined,
   });
+
+  useEffect(() => {
+    if (!isNew && doc) {
+      reset({
+        name:        doc.document_name,
+        description: doc.description,
+        category_id: String(doc.category_id),
+        tags:        (doc.tags ?? []).filter((t) => t.trim() !== ""),
+        status:      doc.availability_status === "active"
+          ? DocumentStatus.Active
+          : DocumentStatus.Inactive,
+      });
+    }
+  }, [doc, isNew, reset]);
 
   const tags = useWatch({ control, name: "tags" }) ?? [];
   const file = useWatch({ control, name: "file" });
@@ -177,7 +183,7 @@ export const DocumentPage = ({ id }: DocumentPageProps) => {
     }
   };
 
-  if (!isNew && isLoadingDoc) {
+  if (!isNew && (isLoadingDoc || isLoadingCategories)) {
     return (
       <div className="flex flex-col gap-6">
         <Skeleton className="h-5 w-56" />
@@ -248,7 +254,6 @@ export const DocumentPage = ({ id }: DocumentPageProps) => {
                 <div className="flex flex-col gap-1.5">
                   <Label>Category <span className="text-destructive">*</span></Label>
                   <Controller
-                    key={doc?.category_id ?? "category"}
                     control={control}
                     name="category_id"
                     render={({ field }) => (

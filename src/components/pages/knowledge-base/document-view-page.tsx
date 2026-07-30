@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import {
@@ -66,21 +66,15 @@ const FileViewer = ({
   fileName: string;
   url: string;
 }) => {
-  const [docxHtml, setDocxHtml] = useState<string>("");
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const handleDocxFile = async (file: File) => {
-    const mammoth = await import("mammoth");
-    const buffer = await file.arrayBuffer();
-    const result = await mammoth.convertToHtml({ arrayBuffer: buffer });
-    setDocxHtml(result.value);
-  };
-
-  // if (viewerType === "pdf") {
-  //   return (
-  //     <iframe src={url} className="w-full h-full border-0" title={fileName} />
-  //   );
-  // }
+  if (viewerType === "docx") {
+    return (
+      <iframe
+        src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`}
+        className="w-full h-full border-0"
+        title={fileName}
+      />
+    );
+  }
 
   if (viewerType === "image") {
     return (
@@ -115,46 +109,6 @@ const FileViewer = ({
     );
   }
 
-  if (viewerType === "docx") {
-    return (
-      <div className="h-full flex flex-col">
-        {docxHtml ? (
-          <div
-            className="flex-1 overflow-auto p-6 prose prose-sm max-w-none"
-            dangerouslySetInnerHTML={{ __html: docxHtml }}
-          />
-        ) : (
-          <div className="flex flex-col items-center justify-center h-full gap-4 p-8 text-center">
-            <div className="w-16 h-16 rounded-2xl bg-blue-50 flex items-center justify-center">
-              <File className="w-8 h-8 text-blue-500" />
-            </div>
-            <div className="flex flex-col gap-1">
-              <p className="text-sm font-medium text-foreground">Word Document</p>
-              <p className="text-xs text-muted-foreground">Load a .docx file to preview its content here.</p>
-            </div>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => fileInputRef.current?.click()}
-            >
-              Load DOCX to preview
-            </Button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".docx"
-              className="hidden"
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                if (f) handleDocxFile(f);
-              }}
-            />
-          </div>
-        )}
-      </div>
-    );
-  }
-
   return (
     <div className="flex flex-col items-center justify-center h-full gap-4 p-8 text-center">
       <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center">
@@ -171,6 +125,8 @@ const FileViewer = ({
 };
 
 export const DocumentViewPage = ({ id }: DocumentViewPageProps) => {
+  const [isDownloading, setIsDownloading] = useState<boolean>(false);
+
   const { data: doc, isLoading, isError } = useQuery({
     queryKey: ["kb-document", id],
     queryFn: () => kbService.getDocument(Number(id)),
@@ -178,19 +134,48 @@ export const DocumentViewPage = ({ id }: DocumentViewPageProps) => {
 
   if (isLoading) {
     return (
-      <div className="flex flex-col h-full">
-        <div className="flex flex-col gap-3 pb-5 shrink-0">
-          <Skeleton className="h-5 w-56" />
-          <Skeleton className="h-10 w-80" />
-        </div>
-        <div className="flex flex-1 min-h-0 gap-5">
-          <div className="w-72 shrink-0 flex flex-col gap-4">
-            <Skeleton className="h-44 rounded-xl" />
-            <Skeleton className="h-44 rounded-xl" />
-            <Skeleton className="h-24 rounded-xl" />
+      <div className="flex flex-col h-full gap-4">
+        {/* breadcrumb */}
+        <Skeleton className="h-5 w-52 shrink-0" />
+
+        {/* top info card */}
+        <Card className="px-5 py-4 shrink-0">
+          <div className="flex items-center gap-5">
+            <div className="flex items-center gap-3">
+              <Skeleton className="w-10 h-10 rounded-lg" />
+              <div className="flex flex-col gap-1.5">
+                <Skeleton className="h-4 w-36" />
+                <Skeleton className="h-3 w-24" />
+              </div>
+            </div>
+            <div className="w-px h-8 bg-border shrink-0" />
+            <div className="flex items-center gap-6 flex-1">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="flex flex-col gap-1.5">
+                  <Skeleton className="h-3 w-14" />
+                  <Skeleton className="h-4 w-20" />
+                </div>
+              ))}
+            </div>
+            <div className="w-px h-8 bg-border shrink-0" />
+            <div className="flex items-center gap-2 shrink-0">
+              <Skeleton className="h-8 w-24 rounded-lg" />
+              <Skeleton className="h-8 w-20 rounded-lg" />
+            </div>
           </div>
-          <Skeleton className="flex-1 rounded-xl" />
-        </div>
+        </Card>
+
+        {/* viewer card */}
+        <Card className="flex-1 min-h-0 overflow-hidden flex flex-col">
+          <div className="flex items-center justify-between px-5 py-3 border-b border-border/60 shrink-0">
+            <div className="flex items-center gap-2.5">
+              <Skeleton className="w-6 h-6 rounded-md" />
+              <Skeleton className="h-4 w-40" />
+            </div>
+            <Skeleton className="h-5 w-20 rounded-md" />
+          </div>
+          <Skeleton className="flex-1 m-5 rounded-xl" />
+        </Card>
       </div>
     );
   }
@@ -264,16 +249,23 @@ export const DocumentViewPage = ({ id }: DocumentViewPageProps) => {
               <p className="text-sm font-medium text-foreground whitespace-nowrap">{formatDate(doc.created_at)}</p>
             </div>
 
-            {doc.tags.length > 0 && (
-              <div className="flex flex-col gap-1">
-                <p className="text-xs text-muted-foreground">Tags</p>
-                <div className="flex flex-wrap gap-1">
-                  {doc.tags.map((tag) => (
-                    <Badge key={tag} variant="purple">{tag}</Badge>
-                  ))}
+            {(() => {
+              const tags = doc.tags.filter((t) => t.trim() !== "");
+              return (
+                <div className="flex flex-col gap-1">
+                  <p className="text-xs text-muted-foreground">Tags</p>
+                  {tags.length > 0 ? (
+                    <div className="flex flex-wrap gap-1">
+                      {tags.map((tag) => (
+                        <Badge key={tag} variant="purple">{tag}</Badge>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">—</p>
+                  )}
                 </div>
-              </div>
-            )}
+              );
+            })()}
           </div>
 
           <div className="w-px h-8 bg-border shrink-0" />
@@ -283,7 +275,16 @@ export const DocumentViewPage = ({ id }: DocumentViewPageProps) => {
             <Button
               variant="secondary"
               size="sm"
-              onClick={() => kbService.downloadDocument(doc.id, doc.file_name)}
+              loading={isDownloading}
+              disabled={isDownloading}
+              onClick={async () => {
+                setIsDownloading(true);
+                try {
+                  await kbService.downloadDocument(doc.id, doc.file_name);
+                } finally {
+                  setIsDownloading(false);
+                }
+              }}
             >
               <Download className="w-3.5 h-3.5" /> Download
             </Button>
