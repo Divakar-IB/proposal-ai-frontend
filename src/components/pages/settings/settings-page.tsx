@@ -74,6 +74,15 @@ export const SettingsPage = () => {
     onError: (err: ApiDetailError) => toast.error(err.response?.data?.detail ??"Failed to save settings"),
   });
 
+  const { mutate: deleteLogo, isPending: isDeletingLogo } = useMutation({
+    mutationFn: () => orgService.deleteLogo(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["org-profile"] });
+      toast.success("Logo removed");
+    },
+    onError: (err: ApiDetailError) => toast.error(err.response?.data?.detail ?? "Failed to remove logo"),
+  });
+
   const { mutate: uploadLogo, isPending: isUploadingLogo } = useMutation({
     mutationFn: (file: File) => orgService.uploadLogo(file),
     onSuccess: () => {
@@ -245,14 +254,28 @@ export const SettingsPage = () => {
                   </Button>
                 </div>
               ) : (
-                <Button
-                  type="button"
-                  variant="secondary"
-                  className="w-full"
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  {org?.logo_url ? "Change logo" : "Upload logo"}
-                </Button>
+                <div className="flex flex-col gap-2 w-full">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="w-full"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    {org?.logo_url ? "Change logo" : "Upload logo"}
+                  </Button>
+                  {org?.logo_url && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="w-full text-destructive hover:text-destructive"
+                      loading={isDeletingLogo}
+                      onClick={() => deleteLogo()}
+                    >
+                      <X className="w-3.5 h-3.5 mr-1" /> Remove logo
+                    </Button>
+                  )}
+                </div>
               )}
             </div>
 

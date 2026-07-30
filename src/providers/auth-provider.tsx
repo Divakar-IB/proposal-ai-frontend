@@ -27,13 +27,13 @@ const getInitialUser = (): AuthUser | null => {
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<AuthUser | null>(getInitialUser);
-  // const router = useRouter();
+  const router = useRouter();
   
-  // useEffect(() => {
-  //   if (!authService.isAuthenticated()) {
-  //     router.replace("/auth/login");
-  //   }
-  // }, [router]);
+  useEffect(() => {
+    if (!authService.isAuthenticated()) {
+      router.replace("/auth/login");
+    }
+  }, [router]);
 
   const logout = () => {
     authService.logout();

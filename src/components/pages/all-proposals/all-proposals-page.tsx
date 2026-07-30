@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { Button, Input, Card, DataTable, Tabs, TabsList, TabsTrigger } from "@/components/ui";
+import { Button, Input, Card, ConfirmDialog, DataTable, Tabs, TabsList, TabsTrigger } from "@/components/ui";
 import type { ColumnDef } from "@/components/ui";
 import { PageHeader, ActionMenu } from "@/components/shared";
 import { proposalService } from "@/services";
@@ -144,10 +144,13 @@ export const AllProposalsPage = () => {
     { label: "In Review", value: statReview?.total ?? "—", icon: ClipboardList, color: "text-violet-500", bg: "bg-violet-50 dark:bg-violet-500/10" },
   ];
 
-  const { mutate: deleteProposal } = useMutation({
+  const [deleteTarget, setDeleteTarget] = useState<Proposal | null>(null);
+
+  const { mutate: deleteProposal, isPending: isDeleting } = useMutation({
     mutationFn: (id: string) => proposalService.delete(id),
     onSuccess: () => {
       toast.success("Proposal deleted");
+      setDeleteTarget(null);
       queryClient.invalidateQueries({ queryKey: ["proposals"] });
     },
     onError: () => toast.error("Failed to delete proposal"),
@@ -235,7 +238,7 @@ export const AllProposalsPage = () => {
               {
                 label: "Delete",
                 icon: Trash2,
-                onClick: () => deleteProposal(String(proposal.id)),
+                onClick: () => setDeleteTarget(proposal),
                 variant: "destructive",
               },
             ]}
@@ -309,6 +312,17 @@ export const AllProposalsPage = () => {
           />
         </Card>
       </div>
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
+        title="Delete proposal"
+        description={`"${deleteTarget?.title}" will be permanently deleted. This cannot be undone.`}
+        confirmLabel="Delete"
+        variant="danger"
+        isPending={isDeleting}
+        onConfirm={() => deleteTarget && deleteProposal(String(deleteTarget.id))}
+      />
     </div>
   );
 };
