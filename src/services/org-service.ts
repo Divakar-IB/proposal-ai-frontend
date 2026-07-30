@@ -13,6 +13,11 @@ class OrgService {
     return data;
   }
 
+  async deleteLogo(): Promise<OrgProfile> {
+    const { data } = await api.delete<OrgProfile>("/organization-settings/logo");
+    return data;
+  }
+
   async uploadLogo(file: File): Promise<OrgProfile> {
     const form = new FormData();
     form.append("file", file);
