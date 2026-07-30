@@ -27,6 +27,7 @@ import {
   PopoverContent,
 } from "@/components/ui";
 import { orgService } from "@/services";
+import { getInitials } from "@/lib/utils";
 import { useAuth } from "@/providers";
 import { UserRole } from "@/types";
 import type { TeamMember } from "@/types";
@@ -47,10 +48,6 @@ const formatDate = (iso: string) =>
     year: "numeric",
   });
 
-const getInitials = (name: string | null) =>
-  name
-    ? name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)
-    : "?";
 
 interface MemberRowProps {
   member: TeamMember;

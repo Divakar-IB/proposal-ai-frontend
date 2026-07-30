@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button, Card, Input, Label, FormError, Heading, Skeleton } from "@/components/ui";
 import { authService } from "@/services";
+import { getInitials } from "@/lib/utils";
 import type { AxiosError } from "axios";
 
 type ApiDetailError = AxiosError<{ detail?: string }>;
@@ -31,10 +32,6 @@ const passwordSchema = z
   });
 type PasswordValues = z.infer<typeof passwordSchema>;
 
-const getInitials = (name: string | null) =>
-  name
-    ? name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)
-    : "?";
 
 interface PasswordInputProps {
   id: string;
