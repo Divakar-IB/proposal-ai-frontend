@@ -7,6 +7,7 @@ export type {
   Proposal,
   ProposalStatus,
   ProposalListParams,
+  ProposalStats,
   GenerationMode,
   ProposalFocus,
   ProposalSection,

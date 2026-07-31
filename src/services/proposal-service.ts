@@ -4,6 +4,7 @@ import { downloadBlob } from "@/lib/download";
 import type {
   Proposal,
   ProposalListParams,
+  ProposalStats,
   ProposalDetail,
   ProposalState,
   Template,
@@ -38,6 +39,11 @@ class ProposalService {
 
   async getAll(params?: ProposalListParams): Promise<PaginatedResponse<Proposal>> {
     const { data } = await api.get<PaginatedResponse<Proposal>>("/proposals", { params });
+    return data;
+  }
+
+  async getStats(): Promise<ProposalStats> {
+    const { data } = await api.get<ProposalStats>("/proposals/stats");
     return data;
   }
 

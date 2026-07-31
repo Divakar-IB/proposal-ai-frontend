@@ -120,28 +120,17 @@ export const AllProposalsPage = () => {
     queryFn: () => proposalService.getAll(queryParams),
   });
 
-  // Lightweight stat queries — limit 1 just to read `total`
-  const { data: statDone } = useQuery({
-    queryKey: ["proposals", "stats", "done"],
-    queryFn: () => proposalService.getAll({ status: "done", limit: 1, page: 1 }),
-    staleTime: 30_000,
-  });
-  const { data: statInProgress } = useQuery({
-    queryKey: ["proposals", "stats", "inprogress"],
-    queryFn: () => proposalService.getAll({ status: "inprogress", limit: 1, page: 1 }),
-    staleTime: 30_000,
-  });
-  const { data: statReview } = useQuery({
-    queryKey: ["proposals", "stats", "review"],
-    queryFn: () => proposalService.getAll({ status: "review", limit: 1, page: 1 }),
+  const { data: statsData } = useQuery({
+    queryKey: ["proposals", "stats"],
+    queryFn: () => proposalService.getStats(),
     staleTime: 30_000,
   });
 
   const stats = [
-    { label: "Total Proposals", value: data?.total ?? "—", icon: FileText, color: "text-blue-500", bg: "bg-blue-50 dark:bg-blue-500/10" },
-    { label: "Completed", value: statDone?.total ?? "—", icon: CheckCircle2, color: "text-green-500", bg: "bg-green-50 dark:bg-green-500/10" },
-    { label: "In Progress", value: statInProgress?.total ?? "—", icon: RefreshCw, color: "text-orange-500", bg: "bg-orange-50 dark:bg-orange-500/10" },
-    { label: "In Review", value: statReview?.total ?? "—", icon: ClipboardList, color: "text-violet-500", bg: "bg-violet-50 dark:bg-violet-500/10" },
+    { label: "Total Proposals", value: statsData?.total ?? "—", icon: FileText, color: "text-blue-500", bg: "bg-blue-50 dark:bg-blue-500/10" },
+    { label: "Completed", value: statsData?.done ?? "—", icon: CheckCircle2, color: "text-green-500", bg: "bg-green-50 dark:bg-green-500/10" },
+    { label: "In Progress", value: statsData?.inprogress ?? "—", icon: RefreshCw, color: "text-orange-500", bg: "bg-orange-50 dark:bg-orange-500/10" },
+    { label: "In Review", value: statsData?.review ?? "—", icon: ClipboardList, color: "text-violet-500", bg: "bg-violet-50 dark:bg-violet-500/10" },
   ];
 
   const [deleteTarget, setDeleteTarget] = useState<Proposal | null>(null);
@@ -234,7 +223,9 @@ export const AllProposalsPage = () => {
           <ActionMenu
             items={[
               { label: "View", icon: Eye, onClick: () => handleView(proposal) },
-              { label: "Download", icon: Download, onClick: () => router.push(`${base}/export`) },
+              ...(proposal.status === "done"
+                ? [{ label: "Download", icon: Download, onClick: () => router.push(`${base}/export`) }]
+                : []),
               {
                 label: "Delete",
                 icon: Trash2,
