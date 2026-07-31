@@ -66,9 +66,8 @@ const AuthLeftPanel = () => {
             src="/images/brand_logo_lite.png"
             alt="InnoBoon logo"
             width={32}
-            height={32}
+            height={33}
             className="rounded-md"
-            style={{ height: "auto" }}
           />
           <div className="flex flex-col leading-none">
             <span className="text-white/50 text-xs">InnoBoon</span>

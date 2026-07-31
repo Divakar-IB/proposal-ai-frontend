@@ -39,11 +39,11 @@ class OrgService {
   }
 
   async updateMemberRole(memberId: number, role: UserRole): Promise<void> {
-    await api.put(`/org/members/${memberId}/role`, { role });
+    await api.patch(`/team/members/${memberId}/role`, { role });
   }
 
   async removeMember(memberId: number): Promise<void> {
-    await api.delete(`/org/members/${memberId}`);
+    await api.delete(`/team/members/${memberId}`);
   }
 }
 

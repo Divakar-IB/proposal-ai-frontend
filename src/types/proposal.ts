@@ -20,6 +20,15 @@ export interface Proposal {
   error_message?: string;
 }
 
+export interface ProposalStats {
+  total: number;
+  inprogress: number;
+  generating: number;
+  review: number;
+  done: number;
+  failed: number;
+}
+
 export interface ProposalListParams {
   search?: string;
   status?: ProposalStatus;
