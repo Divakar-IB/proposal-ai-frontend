@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useEffect, useState, useSyncExternalStore } from "react";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { UserPlus, MoreHorizontal, ShieldCheck, User, Trash2 } from "lucide-react";
+import { UserPlus, MoreHorizontal, ShieldCheck, User, UserCheck, UserX } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
@@ -15,7 +15,6 @@ import {
   Label,
   FormError,
   Skeleton,
-  ConfirmDialog,
   Select,
   SelectTrigger,
   SelectValue,
@@ -36,29 +35,29 @@ import type { AxiosError } from "axios";
 type ApiDetailError = AxiosError<{ detail?: string }>;
 
 const inviteSchema = z.object({
-  email: z.string().email("Enter a valid email"),
+  email: z.email("Enter a valid email"),
   role: z.enum([UserRole.OrgAdmin, UserRole.Member]),
 });
 type InviteValues = z.infer<typeof inviteSchema>;
 
-const formatDate = (iso: string) =>
-  new Date(iso).toLocaleDateString("en-GB", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
+const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const formatDate = (iso: string) => {
+  const d = new Date(iso);
+  return `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+};
 
 
 interface MemberRowProps {
   member: TeamMember;
   currentUserId?: number;
   onRoleChange: (id: number, role: UserRole) => void;
-  onRemove: (member: TeamMember) => void;
+  onStatusChange: (id: number, isActive: boolean) => void;
   isUpdating: boolean;
 }
 
-const MemberRow = ({ member, currentUserId, onRoleChange, onRemove, isUpdating }: MemberRowProps) => {
+const MemberRow = ({ member, currentUserId, onRoleChange, onStatusChange, isUpdating }: MemberRowProps) => {
   const isSelf = member.id === currentUserId;
+  const isActive = member.status === "active";
 
   return (
     <div className="flex items-center justify-between py-3 px-4 rounded-lg hover:bg-muted/40 transition-colors">
@@ -92,6 +91,17 @@ const MemberRow = ({ member, currentUserId, onRoleChange, onRemove, isUpdating }
           {member.role === UserRole.OrgAdmin ? "Admin" : "Member"}
         </span>
 
+        <span
+          className={
+            isActive
+              ? "text-xs font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full"
+              : "text-xs font-medium text-muted-foreground bg-muted px-2 py-0.5 rounded-full"
+          }
+        >
+          {isActive ? "Active" : "Inactive"}
+        </span>
+
+
         {!isSelf && (
           <Popover>
             <PopoverTrigger asChild>
@@ -120,13 +130,25 @@ const MemberRow = ({ member, currentUserId, onRoleChange, onRemove, isUpdating }
                 </button>
               )}
               <div className="my-1 border-t border-border" />
-              <button
-                onClick={() => onRemove(member)}
-                className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm text-destructive hover:bg-destructive/10 transition-colors"
-              >
-                <Trash2 className="w-4 h-4" />
-                Remove
-              </button>
+              {isActive ? (
+                <button
+                  onClick={() => onStatusChange(member.id, false)}
+                  disabled={isUpdating}
+                  className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
+                >
+                  <UserX className="w-4 h-4" />
+                  Deactivate
+                </button>
+              ) : (
+                <button
+                  onClick={() => onStatusChange(member.id, true)}
+                  disabled={isUpdating}
+                  className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm text-foreground hover:bg-accent transition-colors disabled:opacity-50"
+                >
+                  <UserCheck className="w-4 h-4 text-muted-foreground" />
+                  Activate
+                </button>
+              )}
             </PopoverContent>
           </Popover>
         )}
@@ -138,9 +160,9 @@ const MemberRow = ({ member, currentUserId, onRoleChange, onRemove, isUpdating }
 export const TeamPage = () => {
   const router = useRouter();
   const { role } = useAuth();
+  const mounted = useSyncExternalStore(() => () => {}, () => true, () => false);
   const queryClient = useQueryClient();
   const [showInvite, setShowInvite] = useState<boolean>(false);
-  const [removeTarget, setRemoveTarget] = useState<TeamMember | null>(null);
 
   useEffect(() => {
     if (role && role !== UserRole.OrgAdmin) router.replace("/all-proposals");
@@ -158,14 +180,14 @@ export const TeamPage = () => {
     handleSubmit,
     reset: resetInvite,
     setValue,
-    watch,
+    control,
     formState: { errors },
   } = useForm<InviteValues>({
     resolver: zodResolver(inviteSchema),
     defaultValues: { role: UserRole.Member },
   });
 
-  const selectedRole = watch("role");
+  const selectedRole = useWatch({ control, name: "role" });
 
   const { mutate: invite, isPending: isInviting } = useMutation({
     mutationFn: (d: InviteValues) => orgService.inviteMember({ email: d.email, role: d.role }),
@@ -188,17 +210,18 @@ export const TeamPage = () => {
     onError: (err: ApiDetailError) => toast.error(err.response?.data?.detail ??"Failed to update role"),
   });
 
-  const { mutate: removeMember, isPending: isRemoving } = useMutation({
-    mutationFn: (id: number) => orgService.removeMember(id),
-    onSuccess: () => {
+  const { mutate: updateStatus, isPending: isUpdatingStatus } = useMutation({
+    mutationFn: ({ id, isActive }: { id: number; isActive: boolean }) =>
+      orgService.updateMemberStatus(id, isActive),
+    onSuccess: (_, { isActive }) => {
       queryClient.invalidateQueries({ queryKey: ["team-members"] });
-      setRemoveTarget(null);
-      toast.success("Member removed");
+      toast.success(isActive ? "Member activated" : "Member deactivated");
     },
-    onError: (err: ApiDetailError) => toast.error(err.response?.data?.detail ??"Failed to remove member"),
+    onError: (err: ApiDetailError) => toast.error(err.response?.data?.detail ?? "Failed to update status"),
   });
 
-  if (!role || role !== UserRole.OrgAdmin) {
+
+  if (!mounted || role !== UserRole.OrgAdmin) {
     return (
       <div className="flex flex-col gap-6">
         <Skeleton className="h-8 w-48" />
@@ -273,6 +296,24 @@ export const TeamPage = () => {
         </Card>
       )}
 
+      {/* Stats */}
+      {!isLoading && members.length > 0 && (
+        <div className="flex items-center gap-4">
+          {[
+            { label: "Total", value: members.length },
+            { label: "Active", value: members.filter((m) => m.status === "active").length, highlight: true },
+            { label: "Inactive", value: members.filter((m) => m.status === "inactive").length },
+          ].map(({ label, value, highlight }) => (
+            <div key={label} className="flex items-center gap-2 text-sm">
+              <span className="text-muted-foreground">{label}</span>
+              <span className={highlight ? "font-semibold text-emerald-600" : "font-semibold text-foreground"}>
+                {value}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Members list */}
       <Card>
         <div className="p-2">
@@ -299,8 +340,8 @@ export const TeamPage = () => {
                   key={member.id}
                   member={member}
                   onRoleChange={(id, role) => updateRole({ id, role })}
-                  onRemove={setRemoveTarget}
-                  isUpdating={isUpdatingRole}
+                  onStatusChange={(id, isActive) => updateStatus({ id, isActive })}
+                  isUpdating={isUpdatingRole || isUpdatingStatus}
                 />
               ))}
             </div>
@@ -308,16 +349,6 @@ export const TeamPage = () => {
         </div>
       </Card>
 
-      <ConfirmDialog
-        open={!!removeTarget}
-        onOpenChange={(open) => { if (!open) setRemoveTarget(null); }}
-        title={`Remove ${removeTarget?.name}?`}
-        description="They will lose access to the workspace immediately. This action cannot be undone."
-        confirmLabel="Remove"
-        variant="danger"
-        isPending={isRemoving}
-        onConfirm={() => removeTarget && removeMember(removeTarget.id)}
-      />
     </div>
   );
 };

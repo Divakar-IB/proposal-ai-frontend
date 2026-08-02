@@ -288,11 +288,13 @@ export const DocumentViewPage = ({ id }: DocumentViewPageProps) => {
             >
               <Download className="w-3.5 h-3.5" /> Download
             </Button>
-            <Button variant="secondary" size="sm" asChild>
-              <a href={doc.url} target="_blank" rel="noreferrer">
-                <ExternalLink className="w-3.5 h-3.5" /> Open
-              </a>
-            </Button>
+            {viewerType !== "docx" && (
+              <Button variant="secondary" size="sm" asChild>
+                <a href={doc.url} target="_blank" rel="noreferrer">
+                  <ExternalLink className="w-3.5 h-3.5" /> Open
+                </a>
+              </Button>
+            )}
           </div>
         </div>
       </Card>

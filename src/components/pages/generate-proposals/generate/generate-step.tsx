@@ -188,7 +188,7 @@ const GenerateStep = ({ proposalId }: GenerateStepProps) => {
                   ? "All sections complete"
                   : totalCount === 0
                   ? "Starting generation…"
-                  : `${doneCount} of ${totalCount} sections complete`}
+                  : `${doneCount} of ${totalCount || 11} sections complete`}
               </span>
               <span className="text-xs font-medium text-foreground tabular-nums">{pct}%</span>
             </div>

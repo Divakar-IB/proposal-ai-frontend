@@ -62,6 +62,10 @@ class KbService {
     return data;
   }
 
+  async deleteCategory(categoryId: number): Promise<void> {
+    await api.delete(`/category/${categoryId}`);
+  }
+
   async deleteDocument(documentId: number): Promise<void> {
     await api.delete(`/document/${documentId}`, { params: { document_id: documentId } });
   }

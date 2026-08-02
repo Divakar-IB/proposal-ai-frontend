@@ -1,7 +1,13 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-const AUTH_ROUTES = ["/auth/login", "/auth/reset-password"];
+const AUTH_ROUTES = [
+  "/auth/login",
+  "/auth/forgot-password",
+  "/auth/verify-otp",
+  "/auth/new-password",
+  "/auth/reset-password",
+];
 const PUBLIC_ROUTES = [...AUTH_ROUTES];
 
 const isAuthRoute = (pathname: string) =>

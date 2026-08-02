@@ -42,6 +42,10 @@ class OrgService {
     await api.patch(`/team/members/${memberId}/role`, { role });
   }
 
+  async updateMemberStatus(memberId: number, isActive: boolean): Promise<void> {
+    await api.patch(`/team/members/${memberId}/status`, { is_active: isActive });
+  }
+
   async removeMember(memberId: number): Promise<void> {
     await api.delete(`/team/members/${memberId}`);
   }

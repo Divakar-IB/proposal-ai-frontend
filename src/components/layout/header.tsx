@@ -2,6 +2,7 @@
 
 import { BookOpen, LogOut, UserRound } from "lucide-react";
 import Link from "next/link";
+import { useSyncExternalStore } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Button, Popover, PopoverTrigger, PopoverContent } from "@/components/ui";
 import { useAuth } from "@/providers";
@@ -16,6 +17,7 @@ const ROLE_LABEL: Record<UserRole, string> = {
 
 export const Header = () => {
   const { logout, role } = useAuth();
+  const mounted = useSyncExternalStore(() => () => {}, () => true, () => false);
 
   const { data: org } = useQuery({
     queryKey: ["org-profile"],
@@ -54,7 +56,7 @@ export const Header = () => {
               </div>
               <div className="flex flex-col items-start">
                 <span className="text-sm font-medium text-foreground leading-none">{displayName}</span>
-                {role && <span className="text-xs text-muted-foreground mt-0.5">{ROLE_LABEL[role]}</span>}
+                {mounted && role && <span className="text-xs text-muted-foreground mt-0.5">{ROLE_LABEL[role]}</span>}
               </div>
             </button>
           </PopoverTrigger>

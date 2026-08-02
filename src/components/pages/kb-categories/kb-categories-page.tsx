@@ -12,10 +12,13 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { Button, Card, FormError, Heading, Input } from "@/components/ui";
+import { Button, Card, ConfirmDialog, FormError, Heading, Input } from "@/components/ui";
 import { PageHeader, ActionMenu, Breadcrumb } from "@/components/shared";
 import { kbService } from "@/services";
 import type { KbCategory, CreateCategoryRequest, UpdateCategoryRequest } from "@/types";
+import type { AxiosError } from "axios";
+
+type ApiDetailError = AxiosError<{ detail?: string }>;
 
 interface IconConfig { icon: LucideIcon; color: string; bg: string; }
 
@@ -85,6 +88,7 @@ export const KbCategoriesPage = () => {
 
   const [showAddForm, setShowAddForm] = useState<boolean>(false);
   const [editingCategory, setEditingCategory] = useState<KbCategory | null>(null);
+  const [deletingCategory, setDeletingCategory] = useState<KbCategory | null>(null);
 
   const { data: categories = [], isLoading } = useQuery({
     queryKey: ["kb-categories"],
@@ -109,6 +113,16 @@ export const KbCategoriesPage = () => {
       setEditingCategory(null);
     },
     onError: () => toast.error("Failed to update category"),
+  });
+
+  const { mutate: deleteCategory, isPending: isDeleting } = useMutation({
+    mutationFn: (id: number) => kbService.deleteCategory(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["kb-categories"] });
+      toast.success("Category deleted");
+      setDeletingCategory(null);
+    },
+    onError: (err: ApiDetailError) => toast.error(err.response?.data?.detail ?? "Failed to delete category"),
   });
 
   return (
@@ -172,7 +186,7 @@ export const KbCategoriesPage = () => {
                     <ActionMenu
                       items={[
                         { label: "Edit", icon: Pencil, onClick: () => setEditingCategory(cat) },
-                        { label: "Delete", icon: Trash2, onClick: () => {}, variant: "destructive" },
+                        { label: "Delete", icon: Trash2, onClick: () => setDeletingCategory(cat), variant: "destructive" },
                       ]}
                     />
                   </div>
@@ -187,6 +201,16 @@ export const KbCategoriesPage = () => {
               );
             })}
       </div>
+      <ConfirmDialog
+        open={!!deletingCategory}
+        onOpenChange={(open) => !open && setDeletingCategory(null)}
+        title="Delete category"
+        description={`"${deletingCategory?.name}" will be permanently deleted. Documents in this category will be unaffected.`}
+        confirmLabel="Delete"
+        variant="danger"
+        isPending={isDeleting}
+        onConfirm={() => deletingCategory && deleteCategory(deletingCategory.id)}
+      />
     </div>
   );
 };
