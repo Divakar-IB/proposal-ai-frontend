@@ -81,7 +81,7 @@ const ProposalContextPanel = () => {
         <div className="px-5 py-5 flex flex-col gap-6">
           <Section title="Summary">
             <div className="flex flex-col gap-3">
-              {[100, 92, 84, 70, 88, 60, 75, 34, 67, 34, 89, 100, 92, 84, 70, 88, 60, 75, 34, 67, 34, 89].map((w, i) => (
+              {[100, 92, 84, 70, 88, 60, 75, 34, 67, 34, 89, 100, 92, 84, 70, 88, 60, 75].map((w, i) => (
                 <div key={i} className="h-3 bg-muted rounded animate-pulse" style={{ width: `${w}%` }} />
               ))}
             </div>
@@ -95,6 +95,13 @@ const ProposalContextPanel = () => {
                     <div className="h-full rounded-full bg-primary/20 animate-pulse" style={{ width: `${w}%` }} />
                   </div>
                 </div>
+              ))}
+            </div>
+          </Section>
+          <Section title="Capability Tags">
+            <div className="flex flex-wrap gap-2">
+              {[64, 80, 52, 72, 48, 68].map((w, i) => (
+                <div key={i} className="h-6 bg-muted rounded-full animate-pulse" style={{ width: `${w}px` }} />
               ))}
             </div>
           </Section>

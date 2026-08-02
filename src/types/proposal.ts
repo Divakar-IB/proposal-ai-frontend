@@ -57,7 +57,7 @@ export interface CapabilityTag {
 }
 
 export interface UploadRequirementDocumentRequest {
-  file: File;
+  files: File[];
   proposal_name: string;
   client_name: string;
   additional_context?: string;

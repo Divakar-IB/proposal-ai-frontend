@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -29,6 +29,7 @@ type FormValues = z.infer<typeof schema>;
 export const SettingsPage = () => {
   const router = useRouter();
   const { role } = useAuth();
+  const mounted = useSyncExternalStore(() => () => {}, () => true, () => false);
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
@@ -108,7 +109,7 @@ export const SettingsPage = () => {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  if (!role || role !== UserRole.OrgAdmin) {
+  if (!mounted || role !== UserRole.OrgAdmin) {
     return (
       <div className="flex flex-col gap-6">
         <Skeleton className="h-8 w-48" />
