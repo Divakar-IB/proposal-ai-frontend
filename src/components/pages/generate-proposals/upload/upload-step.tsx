@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, FileUp, FileText, ImageIcon, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button, Input, Label, Textarea, FormError, Card } from "@/components/ui";
@@ -37,8 +37,9 @@ interface UploadStepProps {
 
 const UploadStep = ({ proposalId: propProposalId }: UploadStepProps) => {
   const router = useRouter();
-  const { proposalId: storeProposalId, setProposalId, markStepComplete, setUploading } = useProposalWizardStore();
+  const { proposalId: storeProposalId, setProposalId, markStepComplete, setUploading, setUploadFailed } = useProposalWizardStore();
   const proposalId = propProposalId ?? storeProposalId;
+  const queryClient = useQueryClient();
   const inputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -106,16 +107,24 @@ const UploadStep = ({ proposalId: propProposalId }: UploadStepProps) => {
         additional_context: values.additional_context || undefined,
       });
     },
-    onMutate: () => setUploading(true),
+    onMutate: () => {
+      setUploading(true);
+      setUploadFailed(false);
+    },
     onSuccess: (data) => {
       const id = String(data.proposal_id);
       setProposalId(id);
       setUploading(false);
+      setUploadFailed(false);
       markStepComplete(1);
       router.push(`/all-proposals/generate-proposals/${id}/configure`);
     },
     onError: (error: Error) => {
       setUploading(false);
+      setUploadFailed(true);
+      if (proposalId) {
+        queryClient.removeQueries({ queryKey: ["proposal-state", proposalId] });
+      }
       if (error.message === "no_file") {
         toast.error("Please upload your RFP document first.");
       } else {
@@ -125,6 +134,7 @@ const UploadStep = ({ proposalId: propProposalId }: UploadStepProps) => {
   });
 
   const proceedFromView = () => {
+    setUploadFailed(false);
     markStepComplete(1);
     router.push(`/all-proposals/generate-proposals/${propProposalId}/configure`);
   };

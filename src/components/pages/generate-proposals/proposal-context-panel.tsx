@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
+import { AlertTriangle, FileText } from "lucide-react";
 import { Markdown } from "@/components/ui";
 import { proposalService } from "@/services";
 import { useProposalWizardStore } from "@/store";
@@ -24,7 +25,7 @@ const Section = ({ title, children }: SectionProps) => (
 const EmptyState = () => (
   <div className="flex flex-col items-center justify-center h-full gap-3 px-6 text-center">
     <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
-      <span className="text-lg">📄</span>
+      <FileText className="w-5 h-5 text-muted-foreground" />
     </div>
     <p className="text-sm text-muted-foreground leading-relaxed">
       Upload your RFP to see AI-extracted requirements and knowledge matches here.
@@ -32,8 +33,19 @@ const EmptyState = () => (
   </div>
 );
 
+const UploadErrorState = () => (
+  <div className="flex flex-col items-center justify-center h-full gap-3 px-6 text-center">
+    <div className="w-10 h-10 rounded-full bg-destructive/10 flex items-center justify-center">
+      <AlertTriangle className="w-5 h-5 text-destructive" />
+    </div>
+    <p className="text-sm text-muted-foreground leading-relaxed">
+      Upload failed. Please select a valid document and try again.
+    </p>
+  </div>
+);
+
 const ProposalContextPanel = () => {
-  const { isUploading } = useProposalWizardStore();
+  const { isUploading, uploadFailed } = useProposalWizardStore();
 
   const pathname = usePathname();
   const segments = pathname.split("/");
@@ -63,7 +75,9 @@ const ProposalContextPanel = () => {
         </p>
       </div>
 
-      {isUploading ? (
+      {uploadFailed ? (
+        <UploadErrorState />
+      ) : isUploading ? (
         <div className="px-5 py-5 flex flex-col gap-6">
           <Section title="Summary">
             <div className="flex flex-col gap-3">

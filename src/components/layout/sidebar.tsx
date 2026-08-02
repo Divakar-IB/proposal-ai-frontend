@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect } from "react";
+import { useSyncExternalStore } from "react";
 import { ArrowLeft, ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { BrandLogo } from "@/components/ui";
@@ -14,17 +14,20 @@ import ProposalStepsSidebar from "./proposal-steps-sidebar";
 
 const Sidebar = () => {
   const pathname = usePathname();
-  const { navItems, isCollapsed, setActiveHref, toggleSidebar } = useSidebarStore();
+  const { navItems, isCollapsed, toggleSidebar } = useSidebarStore();
   const { role } = useAuth();
   const isWizardMode = pathname.startsWith("/all-proposals/generate-proposals");
-
-  const visibleNavItems = navItems.filter(
-    (item) => !item.adminOnly || role === UserRole.OrgAdmin,
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
   );
 
-  useEffect(() => {
-    setActiveHref(pathname);
-  }, [pathname, setActiveHref]);
+  // Before mount the role is unknown (SSR has no cookie access), so hide adminOnly
+  // items to match server-rendered HTML and avoid hydration mismatch.
+  const visibleNavItems = navItems.filter(
+    (item) => !item.adminOnly || (mounted && role === UserRole.OrgAdmin),
+  );
 
   return (
     <aside
@@ -48,6 +51,7 @@ const Sidebar = () => {
               width={28}
               height={28}
               className="rounded-md"
+              unoptimized
             />
           ) : (
             <BrandLogo theme="light" />

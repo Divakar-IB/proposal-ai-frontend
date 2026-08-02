@@ -14,7 +14,7 @@ const BrandLogo = ({ theme = "light", className }: BrandLogoProps) => {
 
   return (
     <div className={cn("flex items-center gap-2.5", className)}>
-      <Image src={logoSrc} alt="Proposal AI" width={32} height={32} className="rounded-md" />
+      <Image src={logoSrc} alt="Proposal AI" width={32} height={32} className="rounded-md" unoptimized />
       <span
         className={cn(
           "text-2xl font-semibold bg-clip-text text-transparent bg-linear-to-r font-mono",
