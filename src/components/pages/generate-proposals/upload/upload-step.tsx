@@ -25,6 +25,7 @@ type FormValues = z.infer<typeof schema>;
 const ACCEPTED = ".pdf,.docx,.txt,.png,.jpg,.jpeg,.webp";
 const IMAGE_TYPES = ["image/png", "image/jpeg", "image/jpg", "image/webp"];
 const MAX_MB = 50;
+const MAX_FILES = 5;
 
 const formatSize = (bytes: number): string => {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
@@ -41,8 +42,8 @@ const UploadStep = ({ proposalId: propProposalId }: UploadStepProps) => {
   const proposalId = propProposalId ?? storeProposalId;
   const queryClient = useQueryClient();
   const inputRef = useRef<HTMLInputElement>(null);
-  const [file, setFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
+  const [imagePreviews, setImagePreviews] = useState<Record<string, string>>({});
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const syncedRef = useRef(false);
 
@@ -71,37 +72,50 @@ const UploadStep = ({ proposalId: propProposalId }: UploadStepProps) => {
     }
   }, [stateData, reset]);
 
-  const pickFile = (f: File) => {
-    if (f.size > MAX_MB * 1024 * 1024) {
-      toast.error(`File must be under ${MAX_MB}MB`);
-      return;
-    }
-    setFile(f);
-    if (IMAGE_TYPES.includes(f.type)) {
-      setImagePreview(URL.createObjectURL(f));
-    } else {
-      setImagePreview(null);
-    }
-  };
+  const addFiles = useCallback((incoming: File[]) => {
+    const oversized = incoming.filter((f) => f.size > MAX_MB * 1024 * 1024);
+    if (oversized.length) toast.error(`Files must be under ${MAX_MB}MB`);
+    const valid = incoming.filter((f) => f.size <= MAX_MB * 1024 * 1024);
 
-  const clearFile = () => {
-    if (imagePreview) URL.revokeObjectURL(imagePreview);
-    setFile(null);
-    setImagePreview(null);
+    setFiles((prev) => {
+      const combined = [...prev, ...valid];
+      if (combined.length > MAX_FILES) {
+        toast.error(`Maximum ${MAX_FILES} files allowed`);
+        return combined.slice(0, MAX_FILES);
+      }
+      return combined;
+    });
+
+    valid.forEach((f) => {
+      if (IMAGE_TYPES.includes(f.type)) {
+        setImagePreviews((prev) => ({ ...prev, [f.name + f.size]: URL.createObjectURL(f) }));
+      }
+    });
+  }, []);
+
+  const removeFile = (index: number) => {
+    setFiles((prev) => {
+      const f = prev[index];
+      const key = f.name + f.size;
+      if (imagePreviews[key]) {
+        URL.revokeObjectURL(imagePreviews[key]);
+        setImagePreviews((p) => { const n = { ...p }; delete n[key]; return n; });
+      }
+      return prev.filter((_, i) => i !== index);
+    });
   };
 
   const onDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     setIsDragging(false);
-    const dropped = e.dataTransfer.files[0];
-    if (dropped) pickFile(dropped);
-  }, []);
+    addFiles(Array.from(e.dataTransfer.files));
+  }, [addFiles]);
 
   const { mutate: submit, isPending } = useMutation({
     mutationFn: (values: FormValues) => {
-      if (!file) throw new Error("no_file");
+      if (!files.length) throw new Error("no_files");
       return proposalService.uploadRequirementDocument({
-        file,
+        files,
         proposal_name: values.proposal_name,
         client_name: values.client_name,
         additional_context: values.additional_context || undefined,
@@ -125,8 +139,8 @@ const UploadStep = ({ proposalId: propProposalId }: UploadStepProps) => {
       if (proposalId) {
         queryClient.removeQueries({ queryKey: ["proposal-state", proposalId] });
       }
-      if (error.message === "no_file") {
-        toast.error("Please upload your RFP document first.");
+      if (error.message === "no_files") {
+        toast.error("Please upload at least one document.");
       } else {
         toast.error("Something went wrong. Please try again.");
       }
@@ -140,12 +154,14 @@ const UploadStep = ({ proposalId: propProposalId }: UploadStepProps) => {
   };
 
   const onSubmit = (values: FormValues) => {
-    if (propProposalId && !file) {
+    if (propProposalId && !files.length) {
       proceedFromView();
       return;
     }
     submit(values);
   };
+
+  const previousFiles = stateData?.proposal_details?.files ?? [];
 
   return (
     <Card className="py-8 px-8 flex flex-col gap-5 max-w-6xl mx-auto">
@@ -174,10 +190,10 @@ const UploadStep = ({ proposalId: propProposalId }: UploadStepProps) => {
         </div>
         <div className="text-center">
           <p className="text-sm font-medium text-foreground">
-            Drop your RFP or requirements document here
+            Drop your RFP or requirements documents here
           </p>
           <p className="text-xs text-muted-foreground mt-1">
-            PDF, DOCX, TXT, PNG, JPG up to {MAX_MB}MB
+            PDF, DOCX, TXT, PNG, JPG — up to {MAX_FILES} files, {MAX_MB}MB each
           </p>
         </div>
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -197,53 +213,72 @@ const UploadStep = ({ proposalId: propProposalId }: UploadStepProps) => {
           ref={inputRef}
           type="file"
           accept={ACCEPTED}
+          multiple
           className="hidden"
           onChange={(e) => {
-            const f = e.target.files?.[0];
-            if (f) pickFile(f);
+            addFiles(Array.from(e.target.files ?? []));
+            e.target.value = "";
           }}
         />
       </div>
 
-      {/* File preview — newly selected file */}
-      {file && (
-        <div className="flex items-center gap-3 rounded-lg border border-border bg-background px-4 py-3">
-          <div className="w-8 h-8 rounded-md bg-primary/10 flex items-center justify-center shrink-0 overflow-hidden">
-            {imagePreview ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={imagePreview} alt="preview" className="w-full h-full object-cover" />
-            ) : IMAGE_TYPES.includes(file.type) ? (
-              <ImageIcon className="w-4 h-4 text-primary" />
-            ) : (
-              <FileText className="w-4 h-4 text-primary" />
-            )}
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-foreground truncate">{file.name}</p>
-            <p className="text-xs text-muted-foreground">
-              {formatSize(file.size)} · {IMAGE_TYPES.includes(file.type) ? "Image" : "Document"}
+      {/* Newly selected files */}
+      {files.length > 0 && (
+        <div className="flex flex-col gap-2">
+          {files.map((f, i) => {
+            const key = f.name + f.size;
+            const preview = imagePreviews[key];
+            const isImage = IMAGE_TYPES.includes(f.type);
+            return (
+              <div key={key} className="flex items-center gap-3 rounded-lg border border-border bg-background px-4 py-3">
+                <div className="w-8 h-8 rounded-md bg-primary/10 flex items-center justify-center shrink-0 overflow-hidden">
+                  {preview ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={preview} alt="preview" className="w-full h-full object-cover" />
+                  ) : isImage ? (
+                    <ImageIcon className="w-4 h-4 text-primary" />
+                  ) : (
+                    <FileText className="w-4 h-4 text-primary" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-foreground truncate">{f.name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {formatSize(f.size)} · {isImage ? "Image" : "Document"}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => removeFile(i)}
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            );
+          })}
+          {files.length < MAX_FILES && (
+            <p className="text-xs text-muted-foreground text-right">
+              {files.length}/{MAX_FILES} files added
             </p>
-          </div>
-          <button
-            type="button"
-            onClick={clearFile}
-            className="text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <X className="w-4 h-4" />
-          </button>
+          )}
         </div>
       )}
 
-      {/* Previously uploaded file — shown when viewing an existing proposal */}
-      {!file && stateData?.proposal_details?.files[0]?.file_name && (
-        <div className="flex items-center gap-3 rounded-lg border border-border bg-background px-4 py-3">
-          <div className="w-8 h-8 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
-            <FileText className="w-4 h-4 text-primary" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-foreground truncate">{stateData.proposal_details.files[0].file_name}</p>
-            <p className="text-xs text-muted-foreground">Previously uploaded · select a new file to replace</p>
-          </div>
+      {/* Previously uploaded files — shown when viewing an existing proposal */}
+      {files.length === 0 && previousFiles.length > 0 && (
+        <div className="flex flex-col gap-2">
+          {previousFiles.map((pf) => (
+            <div key={pf.file_name} className="flex items-center gap-3 rounded-lg border border-border bg-background px-4 py-3">
+              <div className="w-8 h-8 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
+                <FileText className="w-4 h-4 text-primary" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-foreground truncate">{pf.file_name}</p>
+                <p className="text-xs text-muted-foreground">Previously uploaded · add new files to replace</p>
+              </div>
+            </div>
+          ))}
         </div>
       )}
 

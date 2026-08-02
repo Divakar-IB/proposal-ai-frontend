@@ -23,7 +23,7 @@ class ProposalService {
     payload: UploadRequirementDocumentRequest,
   ): Promise<UploadRequirementDocumentResponse> {
     const form = new FormData();
-    form.append("file", payload.file);
+    payload.files.forEach((f) => form.append("files", f));
     form.append("proposal_name", payload.proposal_name);
     form.append("client_name", payload.client_name);
     if (payload.additional_context) {
