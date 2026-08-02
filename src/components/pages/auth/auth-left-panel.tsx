@@ -68,6 +68,7 @@ const AuthLeftPanel = () => {
             width={32}
             height={33}
             className="rounded-md"
+            unoptimized
           />
           <div className="flex flex-col leading-none">
             <span className="text-white/50 text-xs">InnoBoon</span>

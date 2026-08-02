@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useForm, Controller, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -20,13 +20,13 @@ import {
   Textarea,
   Select,
   SelectTrigger,
-  SelectValue,
   SelectContent,
   SelectItem,
 } from "@/components/ui";
 import { PageHeader, Breadcrumb } from "@/components/shared";
 import { kbService } from "@/services";
 import { DocumentStatus } from "@/types";
+import type { KbDocument, KbCategory } from "@/types";
 
 const ACCEPTED_TYPES = [
   "application/pdf",
@@ -52,13 +52,273 @@ interface DocumentPageProps {
   id: string;
 }
 
+interface DocumentFormInnerProps {
+  defaultValues: DocumentFormValues;
+  categories: KbCategory[];
+  isNew: boolean;
+  doc?: KbDocument;
+  isPending: boolean;
+  onSubmit: (data: DocumentFormValues) => void;
+  onCancel: () => void;
+}
+
+const DocumentFormInner = ({
+  defaultValues,
+  categories,
+  isNew,
+  doc,
+  isPending,
+  onSubmit,
+  onCancel,
+}: DocumentFormInnerProps) => {
+  const [tagInput, setTagInput]           = useState<string>("");
+  const [dragOver, setDragOver]           = useState<boolean>(false);
+  const [showCurrentFile, setShowCurrentFile] = useState<boolean>(true);
+
+  const {
+    register,
+    handleSubmit,
+    control,
+    setValue,
+    formState: { errors },
+  } = useForm<DocumentFormValues>({
+    resolver: zodResolver(schema),
+    defaultValues,
+  });
+
+  const tags = useWatch({ control, name: "tags" }) ?? [];
+  const file = useWatch({ control, name: "file" });
+
+  const addTag = (value: string) => {
+    const trimmed = value.trim();
+    if (trimmed && !tags.includes(trimmed)) {
+      setValue("tags", [...tags, trimmed]);
+    }
+    setTagInput("");
+  };
+
+  const removeTag = (tag: string) => {
+    setValue("tags", tags.filter((t) => t !== tag));
+  };
+
+  const handleTagKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" || e.key === ",") {
+      e.preventDefault();
+      addTag(tagInput);
+    }
+  };
+
+  const handleFileDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+    const dropped = e.dataTransfer.files[0];
+    if (dropped) setValue("file", dropped);
+  };
+
+  return (
+    <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-5">
+      <Card className="p-8">
+        <div className="grid grid-cols-[3fr_2fr] gap-8">
+          <div className="flex flex-col gap-5">
+            <Heading as="h3" size="sm">Document Details</Heading>
+
+            <div className="flex flex-col gap-1.5">
+              <Label>Document Name <span className="text-destructive">*</span></Label>
+              <Input placeholder="e.g. Enterprise AWS Cloud Migration" {...register("name")} />
+              <FormError message={errors.name?.message} />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label>Description <span className="text-destructive">*</span></Label>
+              <Textarea
+                placeholder="Short summary of what this document covers..."
+                rows={3}
+                {...register("description")}
+              />
+              <FormError message={errors.description?.message} />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex flex-col gap-1.5">
+                <Label>Category <span className="text-destructive">*</span></Label>
+                <Controller
+                  control={control}
+                  name="category_id"
+                  render={({ field }) => {
+                    const selectedLabel = categories.find(
+                      (c) => String(c.id) === field.value
+                    )?.name;
+                    return (
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <SelectTrigger>
+                          {selectedLabel ? (
+                            <span>{selectedLabel}</span>
+                          ) : (
+                            <span className="text-muted-foreground">Select a category</span>
+                          )}
+                        </SelectTrigger>
+                        <SelectContent>
+                          {categories.map((cat) => (
+                            <SelectItem key={cat.id} value={String(cat.id)}>
+                              {cat.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    );
+                  }}
+                />
+                <FormError message={errors.category_id?.message} />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <Label>Status</Label>
+                <Controller
+                  control={control}
+                  name="status"
+                  render={({ field }) => {
+                    const statusLabel = field.value === DocumentStatus.Active ? "Active" : "Inactive";
+                    return (
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <SelectTrigger>
+                          <span>{statusLabel}</span>
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value={DocumentStatus.Active}>Active</SelectItem>
+                          <SelectItem value={DocumentStatus.Inactive}>Inactive</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    );
+                  }}
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label>Tags</Label>
+              <div
+                className={cn(
+                  "flex flex-wrap gap-1.5 min-h-9 rounded-lg border border-input px-2.5 py-1.5 transition-colors",
+                  "focus-within:border-ring focus-within:ring-1 focus-within:ring-ring/30",
+                )}
+              >
+                {tags.map((tag) => (
+                  <span
+                    key={tag}
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-primary/10 text-primary text-xs font-medium"
+                  >
+                    <Tag className="w-3 h-3" />
+                    {tag}
+                    <button
+                      type="button"
+                      onClick={() => removeTag(tag)}
+                      className="hover:text-primary/60 transition-colors"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                ))}
+                <input
+                  value={tagInput}
+                  onChange={(e) => setTagInput(e.target.value)}
+                  onKeyDown={handleTagKeyDown}
+                  onBlur={() => tagInput && addTag(tagInput)}
+                  placeholder={tags.length === 0 ? "Type a tag and press Enter..." : ""}
+                  className="flex-1 min-w-24 h-7 bg-transparent text-sm outline-none placeholder:text-text-subtle"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">Press Enter or comma to add a tag.</p>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-5">
+            <Heading as="h3" size="sm">File Upload</Heading>
+
+            <div
+              onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={handleFileDrop}
+              onClick={() => document.getElementById("file-input")?.click()}
+              className={cn(
+                "flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed p-8 transition-colors cursor-pointer flex-1",
+                dragOver
+                  ? "border-primary bg-primary/5"
+                  : "border-border hover:border-primary/40 hover:bg-muted/30",
+              )}
+            >
+              <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+                <UploadCloud className="w-6 h-6 text-muted-foreground" />
+              </div>
+              {file ? (
+                <div className="flex flex-col items-center gap-2">
+                  <p className="text-sm font-medium text-foreground">{file.name}</p>
+                  <p className="text-xs text-muted-foreground">{(file.size / 1024).toFixed(1)} KB</p>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setValue("file", undefined);
+                    }}
+                    className="inline-flex items-center gap-1 text-xs text-destructive hover:text-destructive/70 transition-colors"
+                  >
+                    <X className="w-3 h-3" /> Remove file
+                  </button>
+                </div>
+              ) : !isNew && doc && showCurrentFile ? (
+                <div className="flex flex-col items-center gap-2">
+                  <p className="text-sm font-medium text-foreground">{doc.file_name}</p>
+                  <p className="text-xs text-muted-foreground">{doc.version} version</p>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowCurrentFile(false);
+                    }}
+                    className="inline-flex items-center gap-1 text-xs text-destructive hover:text-destructive/70 transition-colors"
+                  >
+                    <X className="w-3 h-3" /> Remove file
+                  </button>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center gap-1 text-center">
+                  <p className="text-sm font-medium text-foreground">
+                    Drop your file here or <span className="text-primary">browse</span>
+                  </p>
+                  <p className="text-xs text-muted-foreground">Supports PDF, DOCX, TXT</p>
+                </div>
+              )}
+              <input
+                id="file-input"
+                type="file"
+                accept=".pdf,.docx,.txt"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) setValue("file", f);
+                }}
+              />
+            </div>
+            <FormError message={errors.file?.message} />
+          </div>
+        </div>
+      </Card>
+
+      <div className="flex items-center justify-end gap-3">
+        <Button type="button" variant="secondary" onClick={onCancel}>
+          Cancel
+        </Button>
+        <Button type="submit" loading={isPending}>
+          {isNew ? "Add Document" : "Save Changes"}
+        </Button>
+      </div>
+    </form>
+  );
+};
+
 export const DocumentPage = ({ id }: DocumentPageProps) => {
   const isNew = id === "new";
   const router = useRouter();
   const queryClient = useQueryClient();
-  const [tagInput, setTagInput] = useState<string>("");
-  const [dragOver, setDragOver] = useState<boolean>(false);
-  const [showCurrentFile, setShowCurrentFile] = useState<boolean>(true);
 
   const { data: categories = [], isLoading: isLoadingCategories } = useQuery({
     queryKey: ["kb-categories"],
@@ -93,70 +353,7 @@ export const DocumentPage = ({ id }: DocumentPageProps) => {
     onError: () => toast.error("Failed to update document"),
   });
 
-  const isPending = isUploading || isUpdating;
-
-  const {
-    register,
-    handleSubmit,
-    control,
-    setValue,
-    reset,
-    formState: { errors },
-  } = useForm<DocumentFormValues>({
-    resolver: zodResolver(schema),
-    defaultValues: {
-      name: "",
-      description: "",
-      category_id: "",
-      tags: [],
-      status: DocumentStatus.Active,
-    },
-  });
-
-  useEffect(() => {
-    if (!isNew && doc) {
-      reset({
-        name:        doc.document_name,
-        description: doc.description,
-        category_id: String(doc.category_id),
-        tags:        (doc.tags ?? []).filter((t) => t.trim() !== ""),
-        status:      doc.availability_status === "active"
-          ? DocumentStatus.Active
-          : DocumentStatus.Inactive,
-      });
-    }
-  }, [doc, isNew, reset]);
-
-  const tags = useWatch({ control, name: "tags" }) ?? [];
-  const file = useWatch({ control, name: "file" });
-
-  const addTag = (value: string) => {
-    const trimmed = value.trim();
-    if (trimmed && !tags.includes(trimmed)) {
-      setValue("tags", [...tags, trimmed]);
-    }
-    setTagInput("");
-  };
-
-  const removeTag = (tag: string) => {
-    setValue("tags", tags.filter((t) => t !== tag));
-  };
-
-  const handleTagKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter" || e.key === ",") {
-      e.preventDefault();
-      addTag(tagInput);
-    }
-  };
-
-  const handleFileDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setDragOver(false);
-    const dropped = e.dataTransfer.files[0];
-    if (dropped) setValue("file", dropped);
-  };
-
-  const onSubmit = (data: DocumentFormValues) => {
+  const handleSubmit = (data: DocumentFormValues) => {
     if (isNew) {
       if (!data.file) {
         toast.error("Please upload a file");
@@ -210,6 +407,18 @@ export const DocumentPage = ({ id }: DocumentPageProps) => {
     );
   }
 
+  const defaultValues: DocumentFormValues = isNew
+    ? { name: "", description: "", category_id: "", tags: [], status: DocumentStatus.Active }
+    : {
+        name:        doc!.document_name,
+        description: doc!.description,
+        category_id: String(doc!.category_id),
+        tags:        (doc!.tags ?? []).filter((t) => t.trim() !== ""),
+        status:      doc!.availability_status === "active"
+          ? DocumentStatus.Active
+          : DocumentStatus.Inactive,
+      };
+
   return (
     <div className="flex flex-col gap-6">
       <Breadcrumb
@@ -228,190 +437,16 @@ export const DocumentPage = ({ id }: DocumentPageProps) => {
         }
       />
 
-      <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-5">
-        <Card className="p-8">
-          <div className="grid grid-cols-[3fr_2fr] gap-8">
-            <div className="flex flex-col gap-5">
-              <Heading as="h3" size="sm">Document Details</Heading>
-
-              <div className="flex flex-col gap-1.5">
-                <Label>Document Name <span className="text-destructive">*</span></Label>
-                <Input placeholder="e.g. Enterprise AWS Cloud Migration" {...register("name")} />
-                <FormError message={errors.name?.message} />
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <Label>Description <span className="text-destructive">*</span></Label>
-                <Textarea
-                  placeholder="Short summary of what this document covers..."
-                  rows={3}
-                  {...register("description")}
-                />
-                <FormError message={errors.description?.message} />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex flex-col gap-1.5">
-                  <Label>Category <span className="text-destructive">*</span></Label>
-                  <Controller
-                    control={control}
-                    name="category_id"
-                    render={({ field }) => (
-                      <Select value={field.value} onValueChange={field.onChange}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select a category" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {categories.map((cat) => (
-                            <SelectItem key={cat.id} value={String(cat.id)}>
-                              {cat.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
-                  />
-                  <FormError message={errors.category_id?.message} />
-                </div>
-
-                <div className="flex flex-col gap-1.5">
-                  <Label>Status</Label>
-                  <Controller
-                    control={control}
-                    name="status"
-                    render={({ field }) => (
-                      <Select value={field.value} onValueChange={field.onChange}>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value={DocumentStatus.Active}>Active</SelectItem>
-                          <SelectItem value={DocumentStatus.Inactive}>Inactive</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    )}
-                  />
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <Label>Tags</Label>
-                <div
-                  className={cn(
-                    "flex flex-wrap gap-1.5 min-h-9 rounded-lg border border-input px-2.5 py-1.5 transition-colors",
-                    "focus-within:border-ring focus-within:ring-1 focus-within:ring-ring/30",
-                  )}
-                >
-                  {tags.map((tag) => (
-                    <span
-                      key={tag}
-                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-primary/10 text-primary text-xs font-medium"
-                    >
-                      <Tag className="w-3 h-3" />
-                      {tag}
-                      <button
-                        type="button"
-                        onClick={() => removeTag(tag)}
-                        className="hover:text-primary/60 transition-colors"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </span>
-                  ))}
-                  <input
-                    value={tagInput}
-                    onChange={(e) => setTagInput(e.target.value)}
-                    onKeyDown={handleTagKeyDown}
-                    onBlur={() => tagInput && addTag(tagInput)}
-                    placeholder={tags.length === 0 ? "Type a tag and press Enter..." : ""}
-                    className="flex-1 min-w-24 h-7 bg-transparent text-sm outline-none placeholder:text-text-subtle"
-                  />
-                </div>
-                <p className="text-xs text-muted-foreground">Press Enter or comma to add a tag.</p>
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-5">
-              <Heading as="h3" size="sm">File Upload</Heading>
-
-              <div
-                onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-                onDragLeave={() => setDragOver(false)}
-                onDrop={handleFileDrop}
-                onClick={() => document.getElementById("file-input")?.click()}
-                className={cn(
-                  "flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed p-8 transition-colors cursor-pointer flex-1",
-                  dragOver
-                    ? "border-primary bg-primary/5"
-                    : "border-border hover:border-primary/40 hover:bg-muted/30",
-                )}
-              >
-                <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
-                  <UploadCloud className="w-6 h-6 text-muted-foreground" />
-                </div>
-                {file ? (
-                  <div className="flex flex-col items-center gap-2">
-                    <p className="text-sm font-medium text-foreground">{file.name}</p>
-                    <p className="text-xs text-muted-foreground">{(file.size / 1024).toFixed(1)} KB</p>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setValue("file", undefined);
-                      }}
-                      className="inline-flex items-center gap-1 text-xs text-destructive hover:text-destructive/70 transition-colors"
-                    >
-                      <X className="w-3 h-3" /> Remove file
-                    </button>
-                  </div>
-                ) : !isNew && doc && showCurrentFile ? (
-                  <div className="flex flex-col items-center gap-2">
-                    <p className="text-sm font-medium text-foreground">{doc.file_name}</p>
-                    <p className="text-xs text-muted-foreground">{(doc.version)} version</p>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setShowCurrentFile(false);
-                      }}
-                      className="inline-flex items-center gap-1 text-xs text-destructive hover:text-destructive/70 transition-colors"
-                    >
-                      <X className="w-3 h-3" /> Remove file
-                    </button>
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center gap-1 text-center">
-                    <p className="text-sm font-medium text-foreground">
-                      Drop your file here or <span className="text-primary">browse</span>
-                    </p>
-                    <p className="text-xs text-muted-foreground">Supports PDF, DOCX, TXT</p>
-                  </div>
-                )}
-                <input
-                  id="file-input"
-                  type="file"
-                  accept=".pdf,.docx,.txt"
-                  className="hidden"
-                  onChange={(e) => {
-                    const f = e.target.files?.[0];
-                    if (f) setValue("file", f);
-                  }}
-                />
-              </div>
-              <FormError message={errors.file?.message} />
-            </div>
-          </div>
-        </Card>
-
-        <div className="flex items-center justify-end gap-3">
-          <Button type="button" variant="secondary" onClick={() => router.back()}>
-            Cancel
-          </Button>
-          <Button type="submit" loading={isPending}>
-            {isNew ? "Add Document" : "Save Changes"}
-          </Button>
-        </div>
-      </form>
+      <DocumentFormInner
+        key={isNew ? "new" : id}
+        defaultValues={defaultValues}
+        categories={categories}
+        isNew={isNew}
+        doc={doc}
+        isPending={isUploading || isUpdating}
+        onSubmit={handleSubmit}
+        onCancel={() => router.back()}
+      />
     </div>
   );
 };

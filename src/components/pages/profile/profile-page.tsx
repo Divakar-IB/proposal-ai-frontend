@@ -7,7 +7,8 @@ import { z } from "zod";
 import { Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Button, Card, Input, Label, FormError, Heading, Skeleton } from "@/components/ui";
+import { Button, Card, Input, Label, FormError, Skeleton } from "@/components/ui";
+import { PageHeader } from "@/components/shared";
 import { authService } from "@/services";
 import { getInitials } from "@/lib/utils";
 import type { AxiosError } from "axios";
@@ -122,12 +123,10 @@ export const ProfilePage = () => {
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <Heading size="lg">Profile</Heading>
-        <p className="text-muted-foreground text-sm mt-1">
-          Manage your personal information and password.
-        </p>
-      </div>
+      <PageHeader
+        title="Profile"
+        description="Manage your personal information and password."
+      />
 
       <div className="flex gap-6 items-start">
       {/* Personal Information */}

@@ -14,7 +14,6 @@ import {
   Input,
   Label,
   FormError,
-  Heading,
   Skeleton,
   ConfirmDialog,
   Select,
@@ -26,6 +25,7 @@ import {
   PopoverTrigger,
   PopoverContent,
 } from "@/components/ui";
+import { PageHeader } from "@/components/shared";
 import { orgService } from "@/services";
 import { getInitials } from "@/lib/utils";
 import { useAuth } from "@/providers";
@@ -209,18 +209,16 @@ export const TeamPage = () => {
 
   return (
     <div className="flex flex-col gap-6 max-w-3xl">
-      <div className="flex items-start justify-between">
-        <div>
-          <Heading size="lg">Team</Heading>
-          <p className="text-muted-foreground text-sm mt-1">
-            Manage your organisation members and their roles.
-          </p>
-        </div>
-        <Button onClick={() => setShowInvite((v) => !v)}>
-          <UserPlus className="w-4 h-4 mr-2" />
-          Invite member
-        </Button>
-      </div>
+      <PageHeader
+        title="Team"
+        description="Manage your organisation members and their roles."
+        action={
+          <Button onClick={() => setShowInvite((v) => !v)}>
+            <UserPlus className="w-4 h-4 mr-2" />
+            Invite member
+          </Button>
+        }
+      />
 
       {/* Invite form */}
       {showInvite && (

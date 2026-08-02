@@ -9,7 +9,8 @@ import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { Button, Card, Input, Label, FormError, Heading, Skeleton } from "@/components/ui";
+import { Button, Card, Input, Label, FormError, Skeleton } from "@/components/ui";
+import { PageHeader } from "@/components/shared";
 import { orgService } from "@/services";
 import { useAuth } from "@/providers";
 import { UserRole } from "@/types";
@@ -118,12 +119,10 @@ export const SettingsPage = () => {
 
   return (
     <div className="flex flex-col gap-6 max-w-3xl">
-      <div>
-        <Heading size="lg">Settings</Heading>
-        <p className="text-muted-foreground text-sm mt-1">
-          Manage your organisation profile and branding.
-        </p>
-      </div>
+      <PageHeader
+        title="Settings"
+        description="Manage your organisation profile and branding."
+      />
 
       <div className="flex gap-6 items-start">
         {/* Organisation Info */}

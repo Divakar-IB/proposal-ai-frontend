@@ -122,7 +122,7 @@ export const AllProposalsPage = () => {
     queryFn: () => proposalService.getAll(queryParams),
   });
 
-  const { data: statsData } = useQuery({
+  const { data: statsData, isLoading: isStatsLoading } = useQuery({
     queryKey: ["proposals", "stats"],
     queryFn: () => proposalService.getStats(),
     staleTime: 30_000,
@@ -258,7 +258,11 @@ export const AllProposalsPage = () => {
                 <Icon className={cn("w-5 h-5", color)} />
               </div>
               <div>
-                <p className="text-2xl font-bold text-foreground leading-none mb-1">{value}</p>
+                {isStatsLoading ? (
+                  <div className="h-7 w-10 bg-muted rounded animate-pulse mb-1" />
+                ) : (
+                  <p className="text-2xl font-bold text-foreground leading-none mb-1">{value}</p>
+                )}
                 <p className="text-xs text-muted-foreground">{label}</p>
               </div>
             </div>

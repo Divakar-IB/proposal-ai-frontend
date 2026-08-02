@@ -2,16 +2,40 @@
 
 import { BookOpen, LogOut, UserRound } from "lucide-react";
 import Link from "next/link";
+import { useQuery } from "@tanstack/react-query";
 import { Button, Popover, PopoverTrigger, PopoverContent } from "@/components/ui";
 import { useAuth } from "@/providers";
+import { orgService, authService } from "@/services";
+import { UserRole } from "@/types";
+import { getInitials } from "@/lib/utils";
+
+const ROLE_LABEL: Record<UserRole, string> = {
+  [UserRole.OrgAdmin]: "Admin",
+  [UserRole.Member]:   "Member",
+};
 
 export const Header = () => {
-  const { logout } = useAuth();
+  const { logout, role } = useAuth();
+
+  const { data: org } = useQuery({
+    queryKey: ["org-profile"],
+    queryFn: () => orgService.getProfile(),
+    staleTime: 5 * 60_000,
+  });
+
+  const { data: profile } = useQuery({
+    queryKey: ["profile"],
+    queryFn: () => authService.getProfile(),
+    staleTime: 5 * 60_000,
+  });
+
+  const displayName = profile?.full_name ?? profile?.email ?? "—";
+  const initials = getInitials(profile?.full_name ?? profile?.email ?? null);
 
   return (
     <header className="flex items-center justify-between px-8 py-4 border-border bg-white shadow-xs shrink-0 z-10">
       <span className="text-muted-foreground font-medium font-mono text-base">
-        InnoBoon Enterprise
+        {org?.organization_name ?? "InnoBoon Technologies"}
       </span>
 
       <div className="flex items-center gap-3">
@@ -26,9 +50,12 @@ export const Header = () => {
           <PopoverTrigger asChild>
             <button className="flex items-center gap-2.5 hover:opacity-80 transition-opacity">
               <div className="w-8 h-8 rounded-full bg-gradient-brand flex items-center justify-center shrink-0 shadow-md">
-                <span className="text-white text-xs font-semibold">AS</span>
+                <span className="text-white text-xs font-semibold">{initials}</span>
               </div>
-              <span className="text-sm font-medium text-foreground">Adhi S</span>
+              <div className="flex flex-col items-start">
+                <span className="text-sm font-medium text-foreground leading-none">{displayName}</span>
+                {role && <span className="text-xs text-muted-foreground mt-0.5">{ROLE_LABEL[role]}</span>}
+              </div>
             </button>
           </PopoverTrigger>
           <PopoverContent align="end" className="w-44 p-1 gap-0">
