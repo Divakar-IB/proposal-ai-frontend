@@ -30,7 +30,7 @@ class ProposalService {
       form.append("additional_context", payload.additional_context);
     }
     const { data } = await api.post<UploadRequirementDocumentResponse>(
-      "/proposals/requirement-documents",
+      "/proposal/requirement-documents",
       form,
       { headers: { "Content-Type": undefined } },
     );
@@ -38,31 +38,31 @@ class ProposalService {
   }
 
   async getAll(params?: ProposalListParams): Promise<PaginatedResponse<Proposal>> {
-    const { data } = await api.get<PaginatedResponse<Proposal>>("/proposals", { params });
+    const { data } = await api.get<PaginatedResponse<Proposal>>("/proposal", { params });
     return data;
   }
 
   async getStats(): Promise<ProposalStats> {
-    const { data } = await api.get<ProposalStats>("/proposals/stats");
+    const { data } = await api.get<ProposalStats>("/proposal/stats");
     return data;
   }
 
   async getTemplates(): Promise<Template[]> {
-    const { data } = await api.get<Template[]>("/proposals/templates");
+    const { data } = await api.get<Template[]>("/proposal/templates");
     return data;
   }
 
   async delete(id: string): Promise<void> {
-    await api.delete(`/proposals/${id}`);
+    await api.delete(`/proposal/${id}`);
   }
 
   async getProposalState(proposalId: string): Promise<ProposalState> {
-    const { data } = await api.get<ProposalState>("/proposal-state", { params: { proposal_id: proposalId } });
+    const { data } = await api.get<ProposalState>(`/proposal/${proposalId}/state`);
     return data;
   }
 
   async getProposalSections(proposalId: string): Promise<ProposalDetail> {
-    const { data } = await api.get<ProposalDetail>("/proposal-sections", { params: { proposal_id: proposalId } });
+    const { data } = await api.get<ProposalDetail>(`/proposal/${proposalId}/sections`);
     return data;
   }
 
@@ -80,7 +80,7 @@ class ProposalService {
     const token = Cookies.get("a_token");
     const baseURL = process.env.NEXT_PUBLIC_API_URL ?? "";
 
-    const response = await fetch(`${baseURL}/proposals/generate`, {
+    const response = await fetch(`${baseURL}/proposal/generate`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -149,12 +149,12 @@ class ProposalService {
 
   async updateProposalSections(payload: UpdateSectionsRequest): Promise<void> {
     const { proposal_id, ...body } = payload;
-    await api.patch("/proposal-sections", body, { params: { proposal_id } });
+    await api.patch(`/proposal/${proposal_id}/sections`, body);
   }
 
   async exportProposal(payload: ExportProposalRequest): Promise<void> {
     const { proposal_id, ...body } = payload;
-    const response = await api.post(`/proposals/${proposal_id}/export`, body, {
+    const response = await api.post(`/proposal/${proposal_id}/export`, body, {
       responseType: "blob",
     });
     downloadBlob(response.data, `proposal_${proposal_id}.${payload.format}`, payload.format);
@@ -162,11 +162,11 @@ class ProposalService {
 
   async sendEmail(payload: SendEmailRequest): Promise<void> {
     const { proposal_id, ...body } = payload;
-    await api.post(`/proposals/${proposal_id}/export/email`, body);
+    await api.post(`/proposal/${proposal_id}/export/email`, body);
   }
 
   async updateStatus(payload: UpdateStatusRequest): Promise<void> {
-    await api.patch(`/proposals/${payload.proposal_id}/status`, null, {
+    await api.patch(`/proposal/${payload.proposal_id}/status`, null, {
       params: { status: payload.status },
     });
   }

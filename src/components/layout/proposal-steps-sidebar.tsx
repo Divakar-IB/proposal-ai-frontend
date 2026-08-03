@@ -59,10 +59,10 @@ const ProposalStepsSidebar = ({ isCollapsed }: ProposalStepsSidebarProps) => {
 
   const proposalId = storeProposalId ?? urlProposalId;
 
-  // If store hasn't tracked progress, treat all steps before the current one as done
-  const effectiveCompletedSteps = completedSteps.length > 0
-    ? completedSteps
-    : Array.from({ length: activeStep - 1 }, (_, i) => i + 1);
+  // Always treat every step before the current URL step as done,
+  // merged with whatever the store has tracked during this session.
+  const stepsBeforeCurrent = Array.from({ length: activeStep - 1 }, (_, i) => i + 1);
+  const effectiveCompletedSteps = Array.from(new Set([...completedSteps, ...stepsBeforeCurrent]));
 
   return (
     <>
