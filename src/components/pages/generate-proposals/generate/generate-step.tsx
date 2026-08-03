@@ -17,7 +17,7 @@ interface GenerateStepProps {
 }
 
 type SectionStatus = "queued" | "generating" | "done";
-type GenerateMode = "loading" | "streaming" | "done" | "failed";
+type GenerateMode = "loading" | "streaming" | "done";
 
 interface SectionState {
   name: string;
@@ -62,8 +62,6 @@ const GenerateStep = ({ proposalId }: GenerateStepProps) => {
     ? "loading"
     : genStatus === "done"
     ? "done"
-    : genStatus === "failed"
-    ? "failed"
     : "streaming";
 
   // Step 2 — fetch completed sections when done
@@ -140,11 +138,8 @@ const GenerateStep = ({ proposalId }: GenerateStepProps) => {
 
   const doneCount = displaySections.filter((s) => s.status === "done").length;
   const totalCount = displaySections.length;
-  const pct = isDone && totalCount === 0
-    ? 100
-    : totalCount > 0
-    ? Math.round((doneCount / totalCount) * 100)
-    : 0;
+  const TOTAL_SECTIONS = 11;
+  const pct = isDone ? 100 : Math.round((doneCount / TOTAL_SECTIONS) * 100);
 
   const showSections = mode === "streaming" || mode === "done";
   const showSectionSkeleton =
@@ -163,7 +158,7 @@ const GenerateStep = ({ proposalId }: GenerateStepProps) => {
         step={3}
       />
 
-      {(mode === "failed" || hasError) && (
+      {hasError && (
         <div className="flex items-center gap-3 rounded-xl bg-destructive/8 border border-destructive/20 px-4 py-3">
           <AlertCircle className="w-4 h-4 text-destructive shrink-0" />
           <p className="text-sm text-destructive">
@@ -188,7 +183,7 @@ const GenerateStep = ({ proposalId }: GenerateStepProps) => {
                   ? "All sections complete"
                   : totalCount === 0
                   ? "Starting generation…"
-                  : `${doneCount} of ${totalCount || 11} sections complete`}
+                  : `${doneCount} of 11 sections complete`}
               </span>
               <span className="text-xs font-medium text-foreground tabular-nums">{pct}%</span>
             </div>

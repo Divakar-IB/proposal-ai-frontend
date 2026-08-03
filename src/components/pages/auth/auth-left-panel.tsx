@@ -63,11 +63,11 @@ const AuthLeftPanel = () => {
         {/* Logo */}
         <motion.div className="flex items-center gap-3 mb-16" {...fadeUp(0)}>
           <Image
-            src="/images/brand_logo_lite.png"
+            src="/images/brand_logo_dark.png"
             alt="InnoBoon logo"
             width={32}
             height={33}
-            className="rounded-md"
+            className="rounded-md brightness-0 invert"
             unoptimized
           />
           <div className="flex flex-col leading-none">
