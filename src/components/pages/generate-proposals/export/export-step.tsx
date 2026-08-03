@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { LayoutGrid, CheckCircle2, ArrowLeft, Check, Eye, X, Loader2, FileDown, Mail, Send } from "lucide-react";
+import { LayoutGrid, CheckCircle2, ArrowLeft, Check, Eye, X, Loader2, FileDown, Mail, Send, Info } from "lucide-react";
 import { toast } from "sonner";
 import { Button, Card, Input } from "@/components/ui";
 import { StepHeader } from "@/components/pages/generate-proposals";
@@ -67,25 +67,27 @@ const ExportStep = ({ proposalId }: ExportStepProps) => {
   const [thumbScale, setThumbScale] = useState(0.24);
   const thumbH = Math.round(IFRAME_H * thumbScale);
 
+  const { data: templates = [], isLoading: loadingTemplates } = useQuery({
+    queryKey: ["templates"],
+    queryFn: () => proposalService.getTemplates(),
+    staleTime: Infinity,
+  });
+
+  const colCount = Math.min(Math.max(templates.length, 1), 4);
+
   useEffect(() => {
     const el = gridRef.current;
     if (!el) return;
     const update = () => {
-      // 4 cols, 3 gaps of 12px (gap-3)
-      const colW = (el.clientWidth - 36) / 4;
+      const gapTotal = (colCount - 1) * 12;
+      const colW = (el.clientWidth - gapTotal) / colCount;
       setThumbScale(colW / IFRAME_W);
     };
     update();
     const obs = new ResizeObserver(update);
     obs.observe(el);
     return () => obs.disconnect();
-  }, []);
-
-  const { data: templates = [], isLoading: loadingTemplates } = useQuery({
-    queryKey: ["templates"],
-    queryFn: () => proposalService.getTemplates(),
-    staleTime: Infinity,
-  });
+  }, [colCount]);
 
 
   const effectiveTemplateId = selectedTemplateId ?? templates[0]?.id ?? null;
@@ -189,7 +191,7 @@ const ExportStep = ({ proposalId }: ExportStepProps) => {
 
           {loadingTemplates && (
             <div className="grid grid-cols-4 gap-3">
-              {Array.from({ length: 4 }).map((_, i) => (
+              {Array.from({ length: 3 }).map((_, i) => (
                 <div key={i} className="rounded-xl border border-border overflow-hidden">
                   <div className="bg-muted/30 animate-pulse" style={{ height: thumbH }} />
                   <div className="px-3 py-2.5 border-t border-border flex flex-col gap-1.5">
@@ -202,7 +204,7 @@ const ExportStep = ({ proposalId }: ExportStepProps) => {
           )}
 
           {!loadingTemplates && (
-            <div ref={gridRef} className="grid grid-cols-4 gap-3">
+            <div ref={gridRef} className="grid gap-3" style={{ gridTemplateColumns: `repeat(${colCount}, 1fr)` }}>
               {templates.map((template) => {
                 const isSelected = effectiveTemplateId === template.id;
                 return (
@@ -222,10 +224,11 @@ const ExportStep = ({ proposalId }: ExportStepProps) => {
                       <iframe
                         src={template.preview_url}
                         sandbox="allow-same-origin"
+                        scrolling="no"
                         title={`${template.name} thumbnail`}
                         className="absolute top-0 left-0 pointer-events-none border-0"
                         style={{
-                          width: IFRAME_W + 24,
+                          width: IFRAME_W,
                           height: IFRAME_H,
                           transformOrigin: "top left",
                           transform: `scale(${thumbScale})`,
@@ -272,6 +275,12 @@ const ExportStep = ({ proposalId }: ExportStepProps) => {
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-foreground">{fmt.label}</p>
                   <p className="text-xs text-muted-foreground mt-0.5">{fmt.description}</p>
+                  {fmt.id === "docx" && (
+                    <p className="flex items-center gap-1 text-[11px] text-amber-600 mt-1">
+                      <Info className="w-3 h-3 shrink-0" />
+                      Template layout does not apply to DOCX exports
+                    </p>
+                  )}
                 </div>
                 <Button
                   size="sm"
