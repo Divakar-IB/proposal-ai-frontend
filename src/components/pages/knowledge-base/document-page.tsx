@@ -32,6 +32,7 @@ const ACCEPTED_TYPES = [
   "application/pdf",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   "text/plain",
+  "text/markdown",
 ];
 
 const schema = z.object({
@@ -42,7 +43,7 @@ const schema = z.object({
   status:      z.enum([DocumentStatus.Active, DocumentStatus.Inactive]),
   file: z
     .instanceof(File)
-    .refine((f) => ACCEPTED_TYPES.includes(f.type), "Only PDF, DOCX, and TXT files are accepted")
+    .refine((f) => ACCEPTED_TYPES.includes(f.type), "Only PDF, DOCX, TXT, and MD files are accepted")
     .optional(),
 });
 
@@ -284,13 +285,13 @@ const DocumentFormInner = ({
                   <p className="text-sm font-medium text-foreground">
                     Drop your file here or <span className="text-primary">browse</span>
                   </p>
-                  <p className="text-xs text-muted-foreground">Supports PDF, DOCX, TXT</p>
+                  <p className="text-xs text-muted-foreground">Supports PDF, DOCX, TXT, MD</p>
                 </div>
               )}
               <input
                 id="file-input"
                 type="file"
-                accept=".pdf,.docx,.txt"
+                accept=".pdf,.docx,.txt,.md"
                 className="hidden"
                 onChange={(e) => {
                   const f = e.target.files?.[0];
