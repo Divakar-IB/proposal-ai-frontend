@@ -67,12 +67,12 @@ const ConfigureStep = ({ proposalId }: ConfigureStepProps) => {
     if (stateData?.generation_config && !syncedRef.current) {
       syncedRef.current = true;
       setMode(stateData.generation_config.generation_mode);
-      setPageCount(stateData.generation_config.page_count);
+      setPageCount(Math.max(4, stateData.generation_config.page_count));
     }
   }, [stateData]);
 
   const adjustPage = (delta: number) => {
-    setPageCount((prev) => Math.min(50, Math.max(1, prev + delta)));
+    setPageCount((prev) => Math.min(50, Math.max(4, prev + delta)));
   };
 
   const handleGenerate = () => {
@@ -155,7 +155,7 @@ const ConfigureStep = ({ proposalId }: ConfigureStepProps) => {
             <button
               type="button"
               onClick={() => adjustPage(-1)}
-              disabled={pageCount <= 1}
+              disabled={pageCount <= 4}
               className="w-9 h-9 flex items-center justify-center text-muted-foreground hover:bg-muted/50 disabled:opacity-40 transition-colors"
             >
               <Minus className="w-3.5 h-3.5" />
