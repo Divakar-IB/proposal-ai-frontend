@@ -143,7 +143,7 @@ const GenerateStep = ({ proposalId }: GenerateStepProps) => {
 
   const showSections = mode === "streaming" || mode === "done";
   const showSectionSkeleton =
-    displaySections.length === 0 && (mode === "streaming" || (mode === "done" && isLoadingSections));
+    !hasError && displaySections.length === 0 && (mode === "streaming" || (mode === "done" && isLoadingSections));
 
   return (
     <Card className="max-w-5xl mx-auto py-8 px-8 flex flex-col gap-6">
