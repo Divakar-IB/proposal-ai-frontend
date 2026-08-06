@@ -135,6 +135,7 @@ class ProposalService {
             if (eventType === "section_chunk") callbacks.onSectionChunk(currentSection, parsed.content);
             if (eventType === "section_done") callbacks.onSectionDone(currentSection);
             if (eventType === "done") callbacks.onDone();
+            if (eventType === "error") callbacks.onError(new Error(parsed.message ?? "Generation failed"));
           } catch {
             // malformed event — skip
           }
