@@ -138,7 +138,7 @@ const GenerateStep = ({ proposalId }: GenerateStepProps) => {
 
   const doneCount = displaySections.filter((s) => s.status === "done").length;
   const totalCount = displaySections.length;
-  const TOTAL_SECTIONS = 11;
+  const TOTAL_SECTIONS = 12;
   const pct = isDone ? 100 : Math.round((doneCount / TOTAL_SECTIONS) * 100);
 
   const showSections = mode === "streaming" || mode === "done";
