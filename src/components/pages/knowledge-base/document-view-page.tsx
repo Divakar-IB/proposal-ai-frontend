@@ -14,7 +14,7 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { formatDate } from "@/lib/date-format";
-import { Badge, Button, Card, Skeleton } from "@/components/ui";
+import { Badge, Button, Card, Markdown, Skeleton } from "@/components/ui";
 import { Breadcrumb } from "@/components/shared";
 import { kbService } from "@/services";
 
@@ -22,13 +22,14 @@ interface DocumentViewPageProps {
   id: string;
 }
 
-type ViewerType = "pdf" | "docx" | "txt" | "image" | "other";
+type ViewerType = "pdf" | "docx" | "txt" | "md" | "image" | "other";
 
 const getViewerType = (ext: string): ViewerType => {
   const e = ext.toLowerCase();
   if (e === "pdf") return "pdf";
   if (e === "docx" || e === "doc") return "docx";
   if (e === "txt") return "txt";
+  if (e === "md" || e === "markdown") return "md";
   if (["png", "jpg", "jpeg", "gif", "webp", "svg"].includes(e)) return "image";
   return "other";
 };
@@ -37,6 +38,7 @@ const VIEWER_ICONS: Record<ViewerType, React.ElementType> = {
   pdf:   FileText,
   docx:  File,
   txt:   FileText,
+  md:    FileText,
   image: FileImage,
   other: File,
 };
@@ -45,6 +47,7 @@ const VIEWER_COLORS: Record<ViewerType, string> = {
   pdf:   "text-red-500 bg-red-50",
   docx:  "text-blue-500 bg-blue-50",
   txt:   "text-gray-500 bg-gray-100",
+  md:    "text-gray-500 bg-gray-100",
   image: "text-violet-500 bg-violet-50",
   other: "text-gray-500 bg-gray-100",
 };
@@ -53,8 +56,50 @@ const VIEWER_LABELS: Record<ViewerType, string> = {
   pdf:   "PDF Document",
   docx:  "Word Document",
   txt:   "Plain Text",
+  md:    "Markdown",
   image: "Image",
   other: "Document",
+};
+
+const MarkdownFileViewer = ({ url }: { url: string }) => {
+  const { data: content, isLoading, isError } = useQuery({
+    queryKey: ["kb-document-md", url],
+    queryFn: async () => {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("Failed to load markdown file");
+      return res.text();
+    },
+  });
+
+  if (isLoading) {
+    return (
+      <div className="h-full overflow-auto p-6">
+        <Skeleton className="h-full w-full rounded-xl" />
+      </div>
+    );
+  }
+
+  if (isError || content === undefined) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full gap-4 p-8 text-center">
+        <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center">
+          <File className="w-8 h-8 text-muted-foreground" />
+        </div>
+        <p className="text-sm text-muted-foreground">Couldn&apos;t load markdown content.</p>
+        <Button variant="secondary" size="sm" asChild>
+          <a href={url} target="_blank" rel="noreferrer">
+            <ExternalLink className="w-3.5 h-3.5" /> Open file
+          </a>
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="h-full overflow-auto p-6">
+      <Markdown>{content}</Markdown>
+    </div>
+  );
 };
 
 const FileViewer = ({
@@ -88,6 +133,10 @@ const FileViewer = ({
         />
       </div>
     );
+  }
+
+  if (viewerType === "md") {
+    return <MarkdownFileViewer url={url} />;
   }
 
   if (viewerType === "txt") {
