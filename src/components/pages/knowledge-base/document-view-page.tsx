@@ -65,7 +65,7 @@ const MarkdownFileViewer = ({ url }: { url: string }) => {
   const { data: content, isLoading, isError } = useQuery({
     queryKey: ["kb-document-md", url],
     queryFn: async () => {
-      const res = await fetch(url);
+      const res = await fetch(`/api/proxy?url=${encodeURIComponent(url)}`);
       if (!res.ok) throw new Error("Failed to load markdown file");
       return res.text();
     },
@@ -337,7 +337,7 @@ export const DocumentViewPage = ({ id }: DocumentViewPageProps) => {
             >
               <Download className="w-3.5 h-3.5" /> Download
             </Button>
-            {viewerType !== "docx" && (
+            {viewerType !== "docx" && viewerType !== "md" && (
               <Button variant="secondary" size="sm" asChild>
                 <a href={doc.url} target="_blank" rel="noreferrer">
                   <ExternalLink className="w-3.5 h-3.5" /> Open
